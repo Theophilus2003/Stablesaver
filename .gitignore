@@ -1,0 +1,26 @@
+# deps
+node_modules/
+.pnpm-store/
+
+# builds
+.next/
+dist/
+out/
+.turbo/
+*.tsbuildinfo
+next-env.d.ts
+
+# rust / anchor
+target/
+.anchor/
+test-ledger/
+
+# env
+.env
+.env*.local
+
+# misc
+.DS_Store
+*.log
+coverage/
+.vercel

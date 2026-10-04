@@ -1,0 +1,24 @@
+{
+  "name": "stablesave",
+  "private": true,
+  "description": "StableSave — compare ways to earn on idle USDC and USDT on Solana.",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev --filter=@stablesave/web",
+    "dev:api": "turbo run dev --filter=@stablesave/api",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "idl:build": "anchor idl build -p stablesave_vault -o idl/stablesave_vault.json",
+    "generate:client": "node scripts/generate-client.mjs",
+    "program:test": "cargo test -p stablesave-vault"
+  },
+  "devDependencies": {
+    "turbo": "^2.11.7",
+    "typescript": "5.9.3"
+  }
+}

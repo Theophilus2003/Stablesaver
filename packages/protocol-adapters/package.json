@@ -1,0 +1,24 @@
+{
+  "name": "@stablesave/protocol-adapters",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Yield protocol adapters (Kamino, MarginFi, Drift, Save) behind one interface, plus the opportunity service.",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.98.4",
+    "@stablesave/core": "workspace:*",
+    "@stablesave/risk-engine": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vitest": "^4.1.11"
+  }
+}
