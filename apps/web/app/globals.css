@@ -1,0 +1,136 @@
+@import "tailwindcss";
+
+/* Shared components live in the UI package; make sure Tailwind sees them. */
+@source "../../../packages/ui/src";
+
+@theme {
+  /* Surfaces: near-black page, slightly lighter charcoal cards. */
+  --color-canvas: #09090a;
+  --color-surface: #111112;
+  --color-surface-2: #161618;
+  --color-surface-3: #1d1d20;
+  --color-line: rgb(255 255 255 / 0.07);
+  --color-line-strong: rgb(255 255 255 / 0.13);
+
+  /* Text */
+  --color-fg: #f4f4f2;
+  --color-fg-muted: #a0a0a6;
+  --color-fg-subtle: #66666d;
+
+  /* Signals: restrained, never neon. */
+  --color-positive: #5bd08f;
+  --color-warning: #e2b55a;
+  --color-danger: #ec7272;
+  --color-info: #8fb3ff;
+
+  --color-grade-a: #5bd08f;
+  --color-grade-b: #d7c65e;
+  --color-grade-c: #e8955c;
+  --color-grade-d: #ec7272;
+
+  /* Solana accents, used sparingly. */
+  --color-sol-purple: #9945ff;
+  --color-sol-green: #14f195;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --animate-fade-in: fade-in 180ms ease-out;
+  --animate-fade-out: fade-out 140ms ease-in;
+  --animate-sheet-up: sheet-up 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-sheet-down: sheet-down 220ms cubic-bezier(0.4, 0, 1, 1);
+  --animate-drawer-in: drawer-in 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-drawer-out: drawer-out 200ms cubic-bezier(0.4, 0, 1, 1);
+  --animate-dialog-in: dialog-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-dialog-out: dialog-out 160ms ease-in;
+  --animate-rise: rise 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+  @keyframes sheet-up {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  @keyframes sheet-down {
+    from { transform: translateY(0); }
+    to { transform: translateY(100%); }
+  }
+  @keyframes drawer-in {
+    from { transform: translateX(calc(100% + 24px)); }
+    to { transform: translateX(0); }
+  }
+  @keyframes drawer-out {
+    from { transform: translateX(0); }
+    to { transform: translateX(calc(100% + 24px)); }
+  }
+  @keyframes dialog-in {
+    from { opacity: 0; transform: translate(-50%, calc(-50% + 8px)) scale(0.98); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  }
+  @keyframes dialog-out {
+    from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    to { opacity: 0; transform: translate(-50%, calc(-50% + 4px)) scale(0.99); }
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-fg);
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  ::selection {
+    background: rgb(91 208 143 / 0.25);
+  }
+
+  /* Numbers line up everywhere. */
+  .tabular-nums,
+  input[inputmode="decimal"] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 1ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 1ms !important;
+    }
+  }
+}
+
+@utility hairline-solana {
+  /* A whisper of Solana: a 1px gradient line, ~35% opacity. */
+  background-image: linear-gradient(90deg, transparent, rgb(153 69 255 / 0.35), rgb(20 241 149 / 0.35), transparent);
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

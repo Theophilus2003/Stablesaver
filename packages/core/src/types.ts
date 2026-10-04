@@ -201,4 +201,6 @@ export interface MarketSnapshot {
   adapters: AdapterStatus[];
   summary: MarketSummary;
   methodologyVersion: string;
+  /** Set when market data couldn't be loaded at all. */
+  error?: string;
 }

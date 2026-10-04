@@ -73,6 +73,11 @@ const CAP_RULES: readonly CapRule[] = [
   },
 ];
 
+/** Plain-English list of the hard caps, for the methodology page. */
+export function describeCapRules(): string[] {
+  return CAP_RULES.map((r) => r.reason);
+}
+
 function impactFor(score: number): FactorImpact {
   if (score >= 75) return "positive";
   if (score < 50) return "negative";

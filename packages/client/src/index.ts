@@ -6,3 +6,4 @@ export * from "./math";
 export * from "./pdas";
 export * from "./position";
 export * from "./actions";
+export * from "./errors";

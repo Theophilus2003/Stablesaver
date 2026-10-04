@@ -1,0 +1,26 @@
+{
+  "name": "@stablesave/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "StableSave HTTP API: opportunities, vault strategies and estimates.",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.3",
+    "@stablesave/core": "workspace:*",
+    "@stablesave/protocol-adapters": "workspace:*",
+    "@stablesave/risk-engine": "workspace:*",
+    "hono": "^4.13.13"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "tsx": "^4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "^4.1.11"
+  }
+}

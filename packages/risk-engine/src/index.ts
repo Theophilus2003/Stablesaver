@@ -1,5 +1,6 @@
 export {
   calculateSafetyGrade,
+  describeCapRules,
   rateOpportunity,
   rateOpportunities,
   METHODOLOGY_VERSION,
