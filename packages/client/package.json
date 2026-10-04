@@ -13,7 +13,8 @@
   "scripts": {
     "generate": "node ../../scripts/generate-client.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "init-vaults": "tsx scripts/initialize-vaults.ts"
   },
   "dependencies": {
     "@solana/kit": "^8.4.0",
@@ -31,6 +32,7 @@
     "@solana/web3.js": "^1.99.0",
     "typescript": "5.9.3",
     "vitest": "^4.1.11",
-    "@types/node": "^22.18.0"
+    "@types/node": "^22.18.0",
+    "tsx": "^4.23.15"
   }
 }

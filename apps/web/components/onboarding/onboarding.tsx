@@ -2,6 +2,7 @@
 
 import { Button, DialogContent, DialogDescription, DialogTitle, Dialog, Eyebrow } from "@stablesave/ui";
 import { ShieldCheck } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 import { LogoMark } from "@/components/brand/logo";
 import { readStorage, writeStorage } from "@/lib/storage";
@@ -20,11 +21,13 @@ export function useOnboarding() {
   return React.useContext(OnboardingContext);
 }
 
-/** Calls `onDismiss` listeners so the page can focus the calculator. */
+/** Fired once the onboarding dialog has closed, so the page can focus the calculator. */
 export const ONBOARDING_DONE_EVENT = "stablesave:onboarding-done";
 
 export function OnboardingProvider({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = React.useState(false);
+  const pathname = usePathname();
+  const router = useRouter();
 
   React.useEffect(() => {
     // Only on the home page, only the first time.
@@ -38,16 +41,21 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       dismiss: () => {
         writeStorage(STORAGE_KEY, "1");
         setOpen(false);
-        window.dispatchEvent(new Event(ONBOARDING_DONE_EVENT));
       },
     }),
     [open],
   );
 
+  // "Show me my options" from another page takes you to the calculator.
+  const done = React.useCallback(() => {
+    value.dismiss();
+    if (pathname !== "/") router.push("/");
+  }, [value, pathname, router]);
+
   return (
     <OnboardingContext.Provider value={value}>
       {children}
-      <OnboardingDialog open={open} onOpenChange={(next) => (next ? setOpen(true) : value.dismiss())} onDone={value.dismiss} />
+      <OnboardingDialog open={open} onOpenChange={(next) => (next ? setOpen(true) : value.dismiss())} onDone={done} />
     </OnboardingContext.Provider>
   );
 }
@@ -82,6 +90,11 @@ function OnboardingDialog({
         overlayClassName="bg-canvas/92 backdrop-blur-md"
         className="max-h-[calc(100dvh-24px)] max-w-[452px] overflow-y-auto px-6 pb-6 pt-7 sm:px-8 sm:pb-7 sm:pt-9"
         onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => {
+          // Hand focus to the calculator instead of the previously focused element.
+          e.preventDefault();
+          window.dispatchEvent(new Event(ONBOARDING_DONE_EVENT));
+        }}
       >
         <div className="flex size-11 items-center justify-center rounded-[14px] border border-line bg-surface-2">
           <LogoMark className="size-5" />

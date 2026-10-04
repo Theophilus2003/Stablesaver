@@ -56,7 +56,15 @@ export function EnvBadges({ className }: { className?: string }) {
   const onVault = pathname?.startsWith("/vault");
   return (
     <div className={cn("flex items-center gap-1.5", className)}>
-      {onVault ? <ClusterBadge /> : <DataModeBadge />}
+      {onVault ? (
+        <>
+          {/* Vault estimates still use market data, so keep its label visible where there's room. */}
+          <DataModeBadge className="hidden sm:inline-flex" />
+          <ClusterBadge />
+        </>
+      ) : (
+        <DataModeBadge />
+      )}
     </div>
   );
 }
