@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { VaultHome } from "@/components/vault/vault-home";
 import { getMarketSnapshot } from "@/lib/data/snapshot";
 
-// Demo snapshots carry a timestamp; don't freeze it at build time.
-export const revalidate = 60;
+// Market data is fetched per request (and cached in-process), never at build time.
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Vault",

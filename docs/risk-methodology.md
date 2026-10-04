@@ -40,6 +40,12 @@ Each factor scores 0–100 by piecewise-linear interpolation (see `factors.ts`).
 score = 0.75 × weighted average + 0.25 × weakest factor
 ```
 
+## Missing data
+
+Live data doesn't cover every input. A factor whose inputs are missing is marked **not verified** (`known: false`),
+scored conservatively (55, or 70 for an unreviewed incident history), and left out of the weakest-link term so it isn't
+counted twice. Its explanation says what's missing.
+
 ## Hard caps
 
 | Condition | Ceiling |
@@ -50,6 +56,7 @@ score = 0.75 × weighted average + 0.25 × weakest factor
 | Live < 6 months | C+ |
 | Single-key upgrade authority | C+ |
 | Utilization ≥ 98% | B− |
+| Three or more factors not verified | B |
 
 ## Grade scale
 
@@ -66,6 +73,11 @@ There is no A+.
 
 `blendStrategy()` grades a vault strategy as `0.7 × weighted leg score + 0.3 × weakest leg − vaultLayerRiskPoints`
 (4 points for the unaudited vault contract).
+
+## Live data
+
+With `STABLESAVE_DATA_MODE=live` (the default), grades are built from DefiLlama's data plus the conservative
+defaults above. They are still StableSave's opinion, not an audit.
 
 ## Demo data
 

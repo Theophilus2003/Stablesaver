@@ -59,7 +59,8 @@ const CAP_RULES: readonly CapRule[] = [
   {
     ceiling: maxScoreFor("C", "+"),
     reason: "Live for under six months, so it can't grade above C+.",
-    applies: (o, now) => now.getTime() - new Date(o.risk.launchedAt).getTime() < 6 * MONTH_MS,
+    applies: (o, now) =>
+      o.risk.launchedAt !== null && now.getTime() - new Date(o.risk.launchedAt).getTime() < 6 * MONTH_MS,
   },
   {
     ceiling: maxScoreFor("C", "+"),
@@ -69,13 +70,21 @@ const CAP_RULES: readonly CapRule[] = [
   {
     ceiling: maxScoreFor("B", "-"),
     reason: "Almost all deposits are lent out, so withdrawals could stall. It can't grade above B-.",
-    applies: (o) => o.risk.utilization >= 0.98,
+    applies: (o) => o.risk.utilization !== null && o.risk.utilization >= 0.98,
   },
 ];
 
+/** Caps that depend on the assessed factors rather than raw inputs. */
+const UNKNOWN_FACTOR_CAP = {
+  /** This many unverified factors or more… */
+  threshold: 3,
+  ceiling: maxScoreFor("B", ""),
+  reason: "Too many risk inputs are unverified to grade above B.",
+};
+
 /** Plain-English list of the hard caps, for the methodology page. */
 export function describeCapRules(): string[] {
-  return CAP_RULES.map((r) => r.reason);
+  return [...CAP_RULES.map((r) => r.reason), UNKNOWN_FACTOR_CAP.reason];
 }
 
 function impactFor(score: number): FactorImpact {
@@ -101,15 +110,17 @@ export function calculateSafetyGrade(opportunity: Opportunity, options: SafetyGr
   const totalWeight = definitions.reduce((s, f) => s + f.weight, 0);
 
   const factors: FactorAssessment[] = definitions.map((def) => {
-    const { score, detail } = def.evaluate(opportunity, now);
+    const { score, detail, known = true } = def.evaluate(opportunity, now);
     const rounded = Math.round(score);
-    return { id: def.id, label: def.label, weight: def.weight, score: rounded, impact: impactFor(rounded), detail };
+    return { id: def.id, label: def.label, weight: def.weight, score: rounded, known, impact: impactFor(rounded), detail };
   });
 
   const weighted = factors.reduce((s, f) => s + f.score * f.weight, 0) / totalWeight;
-  // Weakest link: a quarter of the score comes from the worst factor, so one
-  // serious problem can't hide behind several good averages.
-  const weakest = Math.min(...factors.map((f) => f.score));
+  // Weakest link: a quarter of the score comes from the worst *measured*
+  // factor, so one serious problem can't hide behind several good averages.
+  // Missing data is already scored conservatively; it isn't double-counted here.
+  const measured = factors.filter((f) => f.known);
+  const weakest = measured.length ? Math.min(...measured.map((f) => f.score)) : weighted;
 
   const caps: string[] = [];
   let score = WEIGHTED_SHARE * weighted + (1 - WEIGHTED_SHARE) * weakest;
@@ -118,6 +129,11 @@ export function calculateSafetyGrade(opportunity: Opportunity, options: SafetyGr
       score = rule.ceiling;
       caps.push(rule.reason);
     }
+  }
+  const unknownCount = factors.length - measured.length;
+  if (unknownCount >= UNKNOWN_FACTOR_CAP.threshold && score > UNKNOWN_FACTOR_CAP.ceiling) {
+    score = UNKNOWN_FACTOR_CAP.ceiling;
+    caps.push(UNKNOWN_FACTOR_CAP.reason);
   }
   score = Math.round(score);
 

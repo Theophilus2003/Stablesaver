@@ -79,6 +79,11 @@ function VaultIntro({ snapshot, onPreview }: { snapshot: MarketSnapshot; onPrevi
 
       <section>
         <h2 className="text-[15px] font-medium">Pick a strategy when you deposit</h2>
+        {snapshot.opportunities.length === 0 ? (
+          <p className="mt-3 rounded-[20px] border border-line p-5 text-sm text-fg-muted">
+            Market rates couldn&apos;t be loaded right now, so we can&apos;t estimate the strategies. Try again in a minute.
+          </p>
+        ) : null}
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           {RISK_PROFILE_IDS.map((profile) => {
             const blend = blendStrategy(EXAMPLE_VAULT_STRATEGIES[profile], snapshot.opportunities, 10_000);

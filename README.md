@@ -6,9 +6,10 @@ StableSave is a stablecoin savings and yield-discovery app. Enter an amount, pic
 yearly return after fees, an A–D safety grade, and the options that fit. Deposit directly on the official protocol,
 or use the StableSave Vault, which splits one deposit across Solana protocols.
 
-> **Status:** market data is **demo data** (illustrative fixtures, labelled everywhere in the UI). The vault program
-> is written and tested on the host but **not deployed**, so the vault UI runs as a labelled **simulated preview**
-> until you configure a deployed program. Nothing here is financial advice.
+> **Status:** market data is **live from DefiLlama** by default (rates, deposits, liquidity, 30-day rate history and
+> protocol metadata), with labelled demo fixtures available offline. The vault program is written and tested on the
+> host but **not deployed**, so the vault UI runs as a labelled **simulated preview** until you configure a deployed
+> program. Nothing here is financial advice.
 
 ## Quick start
 
@@ -16,6 +17,9 @@ or use the StableSave Vault, which splits one deposit across Solana protocols.
 pnpm install
 pnpm dev            # http://localhost:3000
 ```
+
+Market data comes live from DefiLlama's public API (no key). Offline, or to use the illustrative fixtures:
+`STABLESAVE_DATA_MODE=demo pnpm dev`.
 
 Optional API: `pnpm dev:api` (http://localhost:4000), then set `STABLESAVE_API_URL=http://localhost:4000` for the web app.
 
@@ -35,12 +39,13 @@ Three separate things, each visible in the UI:
 
 | Setting | Env var | Default | UI label |
 | --- | --- | --- | --- |
-| Market data source | `STABLESAVE_DATA_MODE` = `demo` \| `live` | `demo` | **Demo data** / **Live data** badge, "Demo rates" eyebrow, per-option provenance note |
+| Market data source | `STABLESAVE_DATA_MODE` = `live` \| `demo` | `live` (DefiLlama) | **Live data** / **Demo data** badge, "Live rates" / "Demo rates" eyebrow, per-option source note and DefiLlama link |
 | Solana cluster | `NEXT_PUBLIC_SOLANA_CLUSTER` = `devnet` \| `mainnet-beta` \| `localnet` | `devnet` | **Devnet** / **Mainnet** badge on vault pages |
 | Vault deployment | `NEXT_PUBLIC_STABLESAVE_VAULT_PROGRAM_ID` + `NEXT_PUBLIC_STABLESAVE_VAULT_MINT` | unset | **Preview** + "Simulated" banners until both are set |
 
-`live` mode never falls back to demo numbers: live adapters aren't connected yet, so protocols report as
-unavailable and the UI says so. See `apps/web/.env.example`.
+`live` mode never falls back to demo numbers: if DefiLlama can't be reached, each protocol reports as unavailable and
+the UI says so. Risk inputs DefiLlama doesn't provide (bug bounties, upgrade controls, incident history,
+concentration) are shown as **not verified** and scored conservatively. See `apps/web/.env.example`.
 
 ## Repository layout
 
@@ -82,7 +87,8 @@ Everything is computed from the data layer: nothing in the UI is a hard-coded ra
 
 ## Known gaps
 
-- Live protocol data: adapters are interfaces with demo sources; live sources throw until integrated.
+- Risk inputs beyond DefiLlama's data (bug bounties, upgrade authority, incident history, concentration) aren't
+  sourced yet; they show as "not verified". Fees are StableSave estimates.
 - Vault allocation: the program stores and validates strategy weights, but funds stay in the vault reserve. The
   allocator that deploys into Kamino / MarginFi / Drift / Save via CPI is the next milestone.
 - The vault program is unaudited. The SBF build and LiteSVM tests need the Solana toolchain (`anchor build`).

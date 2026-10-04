@@ -89,8 +89,15 @@ export function sortOptions(options: readonly RankedOption[], mode: SortMode): R
       return list.sort(
         (a, b) => b.opportunity.safety.score - a.opportunity.safety.score || b.opportunity.yield.totalApy - a.opportunity.yield.totalApy,
       );
-    case "popular":
-      return list.sort((a, b) => b.opportunity.depositors - a.opportunity.depositors);
+    case "popular": {
+      // Depositor counts when every option has one; otherwise deposits (TVL) as the proxy.
+      const byDepositors = list.every((o) => o.opportunity.depositors !== null);
+      return list.sort((a, b) =>
+        byDepositors
+          ? b.opportunity.depositors! - a.opportunity.depositors!
+          : b.opportunity.tvlUsd - a.opportunity.tvlUsd,
+      );
+    }
   }
 }
 

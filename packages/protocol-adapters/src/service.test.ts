@@ -49,15 +49,6 @@ describe("opportunity service (demo)", () => {
   });
 });
 
-describe("live mode", () => {
-  it("reports adapters as unavailable instead of inventing numbers", async () => {
-    const service = createOpportunityService({ adapters: createDefaultAdapters("live") });
-    const snapshot = await service.getSnapshot();
-    expect(snapshot.opportunities).toEqual([]);
-    expect(snapshot.adapters.every((a) => a.status === "unavailable")).toBe(true);
-  });
-});
-
 describe("adapter interface", () => {
   it("answers per-market questions and refuses to fake transactions", async () => {
     const kamino = new KaminoAdapter(new DemoMarketSource("kamino"));

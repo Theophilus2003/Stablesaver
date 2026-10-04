@@ -13,9 +13,11 @@ export interface EarningsPanelProps {
   pinned: boolean;
   onOpen: (id: string) => void;
   onUnpin: () => void;
+  /** No market data at all (e.g. the live source is down). */
+  unavailable?: boolean;
 }
 
-export function EarningsPanel({ option, amount, profile, pinned, onOpen, onUnpin }: EarningsPanelProps) {
+export function EarningsPanel({ option, amount, profile, pinned, onOpen, onUnpin, unavailable = false }: EarningsPanelProps) {
   const o = option?.opportunity;
   const net = option ? option.estimate.netEarnings : 0;
   const apy = o ? o.yield.totalApy : 0;
@@ -51,6 +53,8 @@ export function EarningsPanel({ option, amount, profile, pinned, onOpen, onUnpin
                   Estimated
                 </Badge>
               </>
+            ) : unavailable ? (
+              "Rates unavailable right now"
             ) : (
               "No option fits this setting"
             )}
@@ -114,9 +118,11 @@ export function EarningsPanel({ option, amount, profile, pinned, onOpen, onUnpin
         </>
       ) : (
         <p className="mt-4 text-sm leading-relaxed text-fg-muted">
-          {empty
-            ? "Enter an amount to see estimates."
-            : "Nothing matches this risk level for this amount. Try a different risk setting or a smaller amount."}
+          {unavailable
+            ? "We couldn't load live rates, so there's nothing to estimate. We don't fill the gap with made-up numbers. Try again in a minute."
+            : empty
+              ? "Enter an amount to see estimates."
+              : "Nothing matches this risk level for this amount. Try a different risk setting or a smaller amount."}
         </p>
       )}
     </Panel>

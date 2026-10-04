@@ -128,6 +128,29 @@ export interface StrategyLeg {
   amount: number;
 }
 
+/**
+ * The market a strategy leg deploys into: the exact market when it exists,
+ * otherwise that protocol's largest Solana USDC lending market. Live sources
+ * name markets differently from the example ids, and the on-chain strategy
+ * only stores protocols.
+ */
+export function resolveAllocation(
+  allocation: Pick<StrategyAllocation, "protocolId" | "opportunityId">,
+  opportunities: readonly RatedOpportunity[],
+): RatedOpportunity | undefined {
+  const exact = opportunities.find((o) => o.id === allocation.opportunityId);
+  if (exact) return exact;
+  return opportunities
+    .filter(
+      (o) =>
+        o.protocolId === allocation.protocolId &&
+        o.asset === "USDC" &&
+        o.network === "solana" &&
+        o.strategyType === "lending",
+    )
+    .sort((a, b) => b.tvlUsd - a.tvlUsd)[0];
+}
+
 export interface BlendedStrategy {
   strategy: VaultStrategy;
   legs: StrategyLeg[];
@@ -151,11 +174,10 @@ export function blendStrategy(
   opportunities: readonly RatedOpportunity[],
   amount: number,
 ): BlendedStrategy | null {
-  const byId = new Map(opportunities.map((o) => [o.id, o]));
   const legs: StrategyLeg[] = [];
   const missing: StrategyAllocation[] = [];
   for (const allocation of strategy.allocations) {
-    const opportunity = byId.get(allocation.opportunityId);
+    const opportunity = resolveAllocation(allocation, opportunities);
     if (opportunity) legs.push({ allocation, opportunity, amount: (amount * allocation.weightBps) / BPS });
     else missing.push(allocation);
   }

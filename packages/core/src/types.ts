@@ -58,41 +58,52 @@ export interface IncidentRecord {
   summary: string;
 }
 
-export type UpgradeAuthority = "immutable" | "timelocked-multisig" | "multisig" | "single-key";
+export type UpgradeAuthority = "immutable" | "timelocked-multisig" | "multisig" | "single-key" | "unknown";
 
-export type OracleSetup = "none" | "redundant" | "single";
+export type OracleSetup = "none" | "redundant" | "single" | "unknown";
 
-/** Inputs to the StableSave safety assessment. */
+/**
+ * Inputs to the StableSave safety assessment.
+ *
+ * `null` / "unknown" means the data source doesn't provide it and nobody has
+ * verified it yet. The risk engine scores unknowns conservatively and says so;
+ * it never fills them in with guesses.
+ */
 export interface RiskData {
   /** When this product went live on mainnet (ISO date). */
-  launchedAt: string;
-  audits: number;
-  bugBountyUsd: number;
+  launchedAt: string | null;
+  /** Number of public audits. */
+  audits: number | null;
+  bugBountyUsd: number | null;
   upgradeAuthority: UpgradeAuthority;
-  openSource: boolean;
+  openSource: boolean | null;
   strategyComplexity: "simple" | "moderate" | "complex";
   usesLeverage: boolean;
   incidents: IncidentRecord[];
-  /** Daily total APY observations for the last ~30 days (decimals). */
+  /** False when nobody has reviewed this product's incident history yet. Defaults to true. */
+  incidentsReviewed?: boolean;
+  /** Daily total APY observations for the last ~30 days (decimals). May be empty. */
   apyHistory30d: number[];
   oracleSetup: OracleSetup;
   oracles: string[];
   /** Share of supplied funds currently borrowed (0..1). High = harder to withdraw. */
-  utilization: number;
+  utilization: number | null;
   /** Mandatory wait before withdrawn funds arrive (e.g. an unstaking cooldown). 0 = instant. */
   withdrawalDelayHours: number;
   /** Share of deposits held by the 10 largest depositors (0..1). */
-  topDepositorsShare: number;
+  topDepositorsShare: number | null;
   /** Share of borrows backed by the single largest collateral asset (0..1). */
-  collateralConcentration: number;
+  collateralConcentration: number | null;
 }
 
 export interface DataProvenance {
   mode: DataMode;
-  /** e.g. "StableSave demo fixtures" or "Kamino API". */
+  /** e.g. "StableSave demo fixtures" or "DefiLlama". */
   provider: string;
   fetchedAt: string;
   note?: string;
+  /** Where the underlying numbers can be checked, e.g. the DefiLlama pool page. */
+  sourceUrl?: string;
 }
 
 export interface Opportunity {
@@ -113,7 +124,8 @@ export interface Opportunity {
   tvlUsd: number;
   /** Funds that could be withdrawn right now. */
   liquidityUsd: number;
-  depositors: number;
+  /** Number of depositors, when the source provides it. */
+  depositors: number | null;
   fees: FeeSchedule;
   risk: RiskData;
   /** Official app URL. StableSave never proxies deposits to external protocols. */
@@ -142,6 +154,8 @@ export type FactorImpact = "positive" | "neutral" | "negative";
 
 export interface FactorAssessment {
   id: RiskFactorId;
+  /** False when the inputs for this factor aren't available yet. */
+  known: boolean;
   label: string;
   /** Relative weight in the overall score (all weights sum to 100). */
   weight: number;

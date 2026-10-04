@@ -52,7 +52,12 @@ export function OptionDetail({ opportunity: o, amount, standalone = false }: Opt
                 <StatusDot tone="warning" />
                 Demo data
               </Badge>
-            ) : null}
+            ) : (
+              <Badge size="xs" tone="positive">
+                <StatusDot tone="positive" />
+                Live
+              </Badge>
+            )}
           </div>
         </div>
       </div>
@@ -61,7 +66,22 @@ export function OptionDetail({ opportunity: o, amount, standalone = false }: Opt
         <p className="-mt-2 rounded-2xl border border-warning/20 bg-warning/[0.06] px-4 py-3 text-[13px] leading-relaxed text-fg-muted">
           {o.provenance.note ?? "Illustrative numbers for development."} Check the official app for current figures.
         </p>
-      ) : null}
+      ) : (
+        <p className="-mt-2 rounded-2xl border border-line bg-surface-2 px-4 py-3 text-[13px] leading-relaxed text-fg-muted">
+          {o.provenance.note}{" "}
+          {o.provenance.sourceUrl ? (
+            <a
+              href={o.provenance.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-fg underline decoration-line-strong underline-offset-2 hover:decoration-fg"
+            >
+              View on {o.provenance.provider}
+              <ArrowUpRight className="size-3.5" />
+            </a>
+          ) : null}
+        </p>
+      )}
 
       {/* Headline numbers */}
       <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[20px] border border-line bg-line">
@@ -107,10 +127,10 @@ export function OptionDetail({ opportunity: o, amount, standalone = false }: Opt
           {feeSummary(o)}
           <span className="block text-xs text-fg-subtle">~{formatNetworkFee(o.fees.estimatedNetworkFeeUsd)} network</span>
         </Fact>
-        <Fact label="Depositors">{o.depositors.toLocaleString("en-US")}</Fact>
+        {o.depositors !== null ? <Fact label="Depositors">{o.depositors.toLocaleString("en-US")}</Fact> : null}
         <Fact label="Last updated">
           <span suppressHydrationWarning>{now ? formatRelativeTime(o.updatedAt, now) : "—"}</span>
-          {demo ? <span className="block text-xs text-fg-subtle">demo snapshot</span> : null}
+          <span className="block text-xs text-fg-subtle">{demo ? "demo snapshot" : `via ${o.provenance.provider}`}</span>
         </Fact>
       </dl>
 
@@ -231,7 +251,12 @@ function FactorRow({ factor: f }: { factor: FactorAssessment }) {
     <li>
       <div className="flex items-center justify-between gap-3 text-[13px]">
         <span className="text-fg">{f.label}</span>
-        <span className="tabular-nums text-fg-subtle">{f.score}</span>
+        <span className="flex items-center gap-2 tabular-nums text-fg-subtle">
+          {f.known ? null : (
+            <span className="rounded-full border border-line px-1.5 py-px text-[10px] uppercase tracking-[0.08em]">Not verified</span>
+          )}
+          {f.score}
+        </span>
       </div>
       <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-surface-3">
         <div className={cn("h-full rounded-full opacity-80", color)} style={{ width: `${Math.max(4, f.score)}%` }} />
@@ -279,7 +304,11 @@ function WhatCouldGoWrong({ opportunity: o }: { opportunity: RatedOpportunity })
     {
       title: "Smart contract risk",
       body: `A bug in ${o.protocolName}'s code could lose deposits. ${
-        o.risk.audits > 0 ? `${o.risk.audits} audits lower that chance; they don't remove it.` : "It has no public audits."
+        o.risk.audits === null
+          ? "We haven't verified its audit history yet."
+          : o.risk.audits > 0
+            ? `${o.risk.audits} audits lower that chance; they don't remove it.`
+            : "It has no public audits."
       }`,
     },
     {
@@ -291,7 +320,9 @@ function WhatCouldGoWrong({ opportunity: o }: { opportunity: RatedOpportunity })
       body:
         o.risk.withdrawalDelayHours > 0
           ? `Withdrawals take about ${Math.round(o.risk.withdrawalDelayHours / 24)} days to unlock. You can't get your money back sooner.`
-          : `${formatPercent(o.risk.utilization, 0)} of deposits are lent out right now. If many people withdraw at once, you may have to wait.`,
+          : o.risk.utilization !== null
+            ? `${formatPercent(o.risk.utilization, 0)} of deposits are lent out right now. If many people withdraw at once, you may have to wait.`
+            : "Most deposits in a lending pool are lent out. If many people withdraw at once, you may have to wait.",
     },
     {
       title: "Yield changes",

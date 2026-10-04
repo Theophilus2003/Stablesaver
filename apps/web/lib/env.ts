@@ -2,7 +2,7 @@ import type { DataMode, SolanaCluster } from "@stablesave/core";
 
 /**
  * Runtime configuration. Three things are kept visibly separate in the UI:
- *  - DEMO DATA vs live market data (server-side `STABLESAVE_DATA_MODE`)
+ *  - live market data (DefiLlama) vs DEMO DATA (server-side `STABLESAVE_DATA_MODE`)
  *  - which Solana cluster the wallet + vault use (DEVNET / MAINNET)
  *  - whether the vault program is actually deployed (otherwise: simulated preview)
  */
@@ -37,9 +37,12 @@ export function getPublicEnv(): PublicEnv {
   };
 }
 
-/** Server only. Defaults to demo so we never imply live data by accident. */
+/**
+ * Server only. Live DefiLlama data by default; `STABLESAVE_DATA_MODE=demo`
+ * switches to the labelled demo fixtures (handy offline).
+ */
 export function getDataMode(): DataMode {
-  return process.env.STABLESAVE_DATA_MODE === "live" ? "live" : "demo";
+  return process.env.STABLESAVE_DATA_MODE === "demo" ? "demo" : "live";
 }
 
 export const CLUSTER_LABEL: Record<SolanaCluster, string> = {

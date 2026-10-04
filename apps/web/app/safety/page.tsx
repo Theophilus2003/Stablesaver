@@ -80,6 +80,15 @@ export default function SafetyPage() {
         </p>
       </ProseSection>
 
+      <ProseSection title="When data is missing">
+        <p>
+          Live data from DefiLlama covers rates, deposits, liquidity, rate history, listing dates, audits and price feeds.
+          It doesn&apos;t cover bug bounties, who can upgrade the contracts, incident history or concentration. Those
+          factors show as <span className="text-fg">not verified</span>, score conservatively, and are named in the
+          grade&apos;s explanation. Missing data never makes an option look safer.
+        </p>
+      </ProseSection>
+
       <ProseSection title="Hard limits">
         <p>Some problems cap the grade no matter how good everything else looks:</p>
         <ul className="list-disc space-y-1.5 pl-5 text-sm">

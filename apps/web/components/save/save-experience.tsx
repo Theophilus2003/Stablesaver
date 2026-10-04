@@ -88,14 +88,15 @@ export function SaveExperience({ snapshot, initial }: { snapshot: MarketSnapshot
   }
 
   const demo = snapshot.mode === "demo";
+  const unavailable = snapshot.opportunities.length === 0;
 
   return (
     <>
       <section className="mx-auto max-w-[600px] px-4 pt-12 sm:px-6 sm:pt-20">
         <div className="flex justify-center">
           <span className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-fg-muted">
-            <StatusDot tone={demo ? "warning" : "positive"} pulse={!demo} />
-            {demo ? "Demo rates" : "Live rates"} · No wallet or sign-up
+            <StatusDot tone={unavailable ? "danger" : demo ? "warning" : "positive"} pulse={!demo && !unavailable} />
+            {unavailable ? "Rates unavailable" : demo ? "Demo rates" : "Live rates"} · No wallet or sign-up
           </span>
         </div>
         <h1 className="mt-6 text-center text-[44px] font-semibold leading-[1.02] tracking-[-0.045em] text-balance sm:text-[64px]">
@@ -124,6 +125,7 @@ export function SaveExperience({ snapshot, initial }: { snapshot: MarketSnapshot
             pinned={Boolean(pinned)}
             onOpen={setOpenId}
             onUnpin={() => setPinnedId(null)}
+            unavailable={unavailable}
           />
           {blend && deferredAmount > 0 ? (
             <div className="pt-1.5 sm:pt-2">

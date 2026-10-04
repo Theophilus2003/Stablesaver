@@ -12,16 +12,17 @@ import { KaminoAdapter } from "./adapters/kamino";
 import { MarginfiAdapter } from "./adapters/marginfi";
 import { SaveAdapter } from "./adapters/save";
 import { DemoMarketSource } from "./demo/source";
-import { LiveMarketSource, type LiveSourceOptions } from "./live/source";
+import { DefiLlamaMarketSource, type DefiLlamaSourceOptions } from "./live/defillama-source";
 import type { MarketDataSource, YieldProtocolAdapter } from "./types";
 
 export const SUPPORTED_PROTOCOLS: readonly ProtocolId[] = ["kamino", "marginfi", "drift", "save"];
 
-export function createSource(protocol: ProtocolId, mode: DataMode, live: LiveSourceOptions = {}): MarketDataSource {
-  return mode === "demo" ? new DemoMarketSource(protocol) : new LiveMarketSource(protocol, live);
+/** `demo` → illustrative fixtures; `live` → DefiLlama's public yields API. */
+export function createSource(protocol: ProtocolId, mode: DataMode, live: DefiLlamaSourceOptions = {}): MarketDataSource {
+  return mode === "demo" ? new DemoMarketSource(protocol) : new DefiLlamaMarketSource(protocol, live);
 }
 
-export function createDefaultAdapters(mode: DataMode, live: LiveSourceOptions = {}): YieldProtocolAdapter[] {
+export function createDefaultAdapters(mode: DataMode, live: DefiLlamaSourceOptions = {}): YieldProtocolAdapter[] {
   return [
     new KaminoAdapter(createSource("kamino", mode, live)),
     new MarginfiAdapter(createSource("marginfi", mode, live)),

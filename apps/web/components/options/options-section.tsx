@@ -124,6 +124,16 @@ export function OptionsSection({
       <p className="mt-4 text-xs leading-relaxed text-fg-subtle">
         Rates change. Your return isn&apos;t guaranteed. Grades are a StableSave safety assessment, not a guarantee against
         loss.
+        {snapshot.mode === "live" ? (
+          <>
+            {" "}
+            Rates, deposits and liquidity from{" "}
+            <a href="https://defillama.com/yields" target="_blank" rel="noopener noreferrer" className="underline decoration-line-strong underline-offset-2 hover:text-fg-muted">
+              DefiLlama
+            </a>
+            .
+          </>
+        ) : null}
       </p>
     </section>
   );
@@ -137,7 +147,8 @@ function UnavailableState({ snapshot }: { snapshot: MarketSnapshot }) {
         Market data isn&apos;t available right now
       </div>
       <p className="mt-2 text-sm text-fg-muted">
-        We don&apos;t show placeholder rates in place of live ones. {snapshot.error ? snapshot.error : null}
+        We don&apos;t show placeholder rates in place of live ones. Try again in a minute.{" "}
+        {snapshot.error ? snapshot.error : null}
       </p>
       {snapshot.adapters.length > 0 ? (
         <ul className="mt-4 space-y-1.5 text-xs text-fg-muted">

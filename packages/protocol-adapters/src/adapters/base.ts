@@ -71,9 +71,11 @@ export class BaseYieldAdapter implements YieldProtocolAdapter {
           mode: this.source.mode,
           provider: this.source.provider,
           fetchedAt,
-          ...(this.source.mode === "demo"
-            ? { note: `Illustrative numbers for development. Not a real measurement of ${this.name}.` }
-            : {}),
+          note:
+            this.source.mode === "demo"
+              ? `Illustrative numbers for development. Not a real measurement of ${this.name}.`
+              : `Rates and liquidity from ${this.source.provider}, which refreshes them about hourly. Fees are StableSave estimates, and some risk inputs aren't verified yet.`,
+          ...(m.sourceUrl ? { sourceUrl: m.sourceUrl } : {}),
         },
       }));
   }

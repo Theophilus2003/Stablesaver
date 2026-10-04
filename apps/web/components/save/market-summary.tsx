@@ -21,6 +21,7 @@ export function MarketSummaryStrip({
     return () => clearInterval(t);
   }, []);
   const demo = snapshot.mode === "demo";
+  const unavailable = snapshot.opportunities.length === 0;
 
   return (
     <div className="grid grid-cols-2 overflow-hidden rounded-[24px] border border-line bg-surface sm:grid-cols-3">
@@ -46,11 +47,11 @@ export function MarketSummaryStrip({
       <div className="flex flex-col gap-1 border-l border-t border-line p-5 sm:border-t-0">
         <span className="text-[13px] text-fg-muted">Updated</span>
         <span className="text-[26px] font-semibold leading-tight tracking-[-0.03em]" suppressHydrationWarning>
-          {now ? formatRelativeTime(snapshot.generatedAt, now) : "—"}
+          {now && !unavailable ? formatRelativeTime(snapshot.generatedAt, now) : "—"}
         </span>
         <span className="flex items-center gap-1.5 text-xs text-fg-subtle">
-          <StatusDot tone={demo ? "warning" : "positive"} pulse={!demo} />
-          {demo ? "Demo snapshot" : "Live data"}
+          <StatusDot tone={unavailable ? "danger" : demo ? "warning" : "positive"} pulse={!demo && !unavailable} />
+          {unavailable ? "Couldn't load rates" : demo ? "Demo snapshot" : "Live · DefiLlama"}
         </span>
       </div>
     </div>

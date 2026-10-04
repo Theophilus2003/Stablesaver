@@ -11,7 +11,22 @@ export { MarginfiAdapter } from "./adapters/marginfi";
 export { DriftAdapter } from "./adapters/drift";
 export { SaveAdapter } from "./adapters/save";
 export { DemoMarketSource, DEMO_PROVIDER } from "./demo/source";
-export { LiveMarketSource, type LiveSourceOptions } from "./live/source";
+export {
+  DefiLlamaMarketSource,
+  DEFILLAMA_PROJECTS,
+  DEFILLAMA_PROVIDER,
+  SOLANA_STABLE_MINTS,
+  selectPools,
+  type DefiLlamaSourceOptions,
+} from "./live/defillama-source";
+export {
+  DefiLlamaClient,
+  DefiLlamaRequestError,
+  getSharedDefiLlamaClient,
+  type DefiLlamaClientOptions,
+  type DefiLlamaPool,
+  type DefiLlamaProtocol,
+} from "./live/defillama-client";
 export { DirectDepositUnavailableError, LiveDataUnavailableError, UnknownMarketError } from "./errors";
 export {
   createDefaultAdapters,

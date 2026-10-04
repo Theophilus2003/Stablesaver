@@ -113,4 +113,46 @@ describe("calculateSafetyGrade", () => {
     const old = calculateSafetyGrade(makeOpportunity({ incidents: [{ ...incident, date: "2021-06-01" }] }), { now: NOW });
     expect(old.score).toBeGreaterThan(recent.score);
   });
+
+  it("scores missing inputs conservatively and says so", () => {
+    const known = calculateSafetyGrade(makeOpportunity(), { now: NOW });
+    const unknown = calculateSafetyGrade(
+      makeOpportunity({
+        bugBountyUsd: null,
+        upgradeAuthority: "unknown",
+        openSource: null,
+        oracleSetup: "unknown",
+        oracles: [],
+        topDepositorsShare: null,
+        collateralConcentration: null,
+        incidentsReviewed: false,
+      }),
+      { now: NOW },
+    );
+    expect(unknown.score).toBeLessThan(known.score);
+    const unknownIds = unknown.factors.filter((f) => !f.known).map((f) => f.id);
+    expect(unknownIds).toEqual(expect.arrayContaining(["incidents", "oracle", "concentration"]));
+    expect(unknown.reasons.join(" ")).toMatch(/not reviewed|not verified|not available/);
+  });
+
+  it("caps options with many unverified factors at B", () => {
+    const result = calculateSafetyGrade(
+      makeOpportunity({
+        launchedAt: null,
+        audits: null,
+        oracleSetup: "unknown",
+        topDepositorsShare: null,
+        collateralConcentration: null,
+        incidentsReviewed: false,
+      }),
+      { now: NOW },
+    );
+    expect(result.score).toBeLessThanOrEqual(74);
+    expect(result.caps).toContain("Too many risk inputs are unverified to grade above B.");
+  });
+
+  it("missing utilization doesn't crash and is mentioned", () => {
+    const result = calculateSafetyGrade(makeOpportunity({ utilization: null }), { now: NOW });
+    expect(result.factors.find((f) => f.id === "liquidity")!.detail).toMatch(/isn't reported/);
+  });
 });

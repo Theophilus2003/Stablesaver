@@ -34,9 +34,9 @@
    }
    ```
 
-   Markets come from a `MarketDataSource`: `DemoMarketSource` (fixtures) or `LiveMarketSource` (throws
-   `LiveDataUnavailableError` until integrated). Transaction builders throw `DirectDepositUnavailableError`, and the
-   UI links to the official app instead.
+   Markets come from a `MarketDataSource`: `DefiLlamaMarketSource` (live, default) or `DemoMarketSource`
+   (fixtures). Transaction builders throw `DirectDepositUnavailableError`, and the UI links to the official app
+   instead.
 
 2. **OpportunityService** collects every adapter's markets, rates them with the **risk engine**, and returns a
    `MarketSnapshot { mode, generatedAt, opportunities, adapters, summary }`. A failing adapter is reported as
@@ -63,19 +63,30 @@ vault-layer risk points) with `validateStrategy()` mirroring the on-chain rules 
 APY and grade. `EXAMPLE_VAULT_STRATEGIES` are labelled `source: "example"`; when a vault is deployed the UI reads the
 weights from the vault account instead (`strategyFromVault`).
 
-## Going live with protocol data
+## Live data (DefiLlama)
 
-Implement a `MarketDataSource` per protocol in `packages/protocol-adapters/src/live/` returning `ProtocolMarket[]`:
+`packages/protocol-adapters/src/live/` reads DefiLlama's public, keyless API:
 
-| Protocol | Suggested source |
+| Endpoint | Used for |
 | --- | --- |
-| Kamino | `@kamino-finance/klend-sdk` reserves (supply APY, available liquidity, utilization) |
-| MarginFi | `@mrgnlabs/marginfi-client-v2` banks |
-| Drift | `@drift-labs/sdk` spot markets and insurance fund |
-| Save | `@solendprotocol/solend-sdk` or the Save API |
+| `yields.llama.fi/pools` | supply APY (base + rewards), pool size, pool name |
+| `yields.llama.fi/lendBorrow` | total supplied / borrowed → TVL, available liquidity, utilization |
+| `yields.llama.fi/chart/{pool}` | last 30 daily rates → yield-stability factor |
+| `api.llama.fi/protocols` | listing date (maturity), audit links, oracle providers |
 
-Add an indexer for 30-day APY history and curate incident records with citations. Then set
-`STABLESAVE_DATA_MODE=live`.
+Only Solana pools for the protocol's DefiLlama projects (`DEFILLAMA_PROJECTS`: `kamino-lend`, `marginfi-lending`,
+`drift-trade`, `save`, plus older names) are used, with a single-asset USDC/USDT symbol on the canonical mint, at least
+$250k in the pool, and not flagged as an outlier; the three largest per asset. `/pools` is cached for 10 minutes and
+shared by all four protocols; `/protocols` for 6 hours; charts for an hour. `/pools` failing makes the protocol
+`unavailable`; the other endpoints are optional enrichment, and missing values stay `null`.
+
+Not available from DefiLlama, so `null` / `"unknown"` and labelled "not verified": bug bounty, upgrade authority,
+open-source status, incident review, depositor and collateral concentration. Fees are StableSave estimates.
+
+`STABLESAVE_DEFILLAMA_YIELDS_URL` / `STABLESAVE_DEFILLAMA_API_URL` point the client at a proxy or mirror.
+
+To add a protocol-native source later (e.g. Kamino's SDK for per-reserve data), implement `MarketDataSource` and
+return it from `createSource()`.
 
 ## Design system
 

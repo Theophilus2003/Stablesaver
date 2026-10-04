@@ -5,8 +5,8 @@ import { ProsePage, ProseSection } from "@/components/layout/prose-page";
 import { getMarketSnapshot } from "@/lib/data/snapshot";
 import { CLUSTER_LABEL, getPublicEnv } from "@/lib/env";
 
-// Demo snapshots carry a timestamp; don't freeze it at build time.
-export const revalidate = 60;
+// Market data is fetched per request (and cached in-process), never at build time.
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = { title: "Data sources" };
 
@@ -19,21 +19,23 @@ export default async function DataSourcesPage() {
     <ProsePage
       eyebrow="Data sources"
       title="Where the numbers come from"
-      intro="Each protocol is read through its own adapter. Every number carries a label saying whether it is demo data or live, and we never fill a gap with made-up figures."
+      intro="Live rates, deposits and liquidity come from DefiLlama's public yields data. Every number carries a label saying whether it is live or demo data, and we never fill a gap with made-up figures."
     >
       <ProseSection title="Right now">
         <div className="rounded-[20px] border border-line p-5">
           <div className="flex items-center gap-2">
             <Badge tone={demo ? "warning" : "positive"} size="xs">
               <StatusDot tone={demo ? "warning" : "positive"} pulse={!demo} />
-              {demo ? "Demo data" : "Live data"}
+              {demo ? "Demo data" : "Live data · DefiLlama"}
             </Badge>
             <span className="text-xs text-fg-subtle">snapshot generated {formatRelativeTime(snapshot.generatedAt)}</span>
           </div>
           <p className="mt-3 text-sm">
             {demo
               ? "Rates, liquidity and risk inputs are illustrative fixtures shaped like real Solana markets. They are not measurements of the protocols named, and the safety grades built from them are examples of the method, not real assessments."
-              : "Market data is read from live sources through the protocol adapters."}
+              : snapshot.opportunities.length === 0
+                ? "Live data couldn't be loaded just now, so no rates are shown. Details per protocol below."
+                : "Rates, deposits and available liquidity are read from DefiLlama, which refreshes them about hourly. We keep Solana, single-asset USDC and USDT pools on the canonical token mints."}
           </p>
         </div>
         <ul className="divide-y divide-line rounded-[20px] border border-line">
@@ -55,15 +57,25 @@ export default async function DataSourcesPage() {
         </ul>
       </ProseSection>
 
-      <ProseSection title="Going live">
+      <ProseSection title="What comes from DefiLlama">
+        <ul className="list-disc space-y-1.5 pl-5 text-sm">
+          <li>Current supply APY, split into base yield and token rewards.</li>
+          <li>Total supplied and borrowed (so available liquidity and utilization), when DefiLlama reports them.</li>
+          <li>30 days of daily rate history, for the yield-stability factor.</li>
+          <li>Protocol listing date, audit links and price-feed (oracle) providers.</li>
+        </ul>
         <p>
-          Live adapters plug in behind the same interface: Kamino via its lending SDK, MarginFi via its client, Drift via
-          its SDK and Save via its SDK or public API. Until each one is connected and verified, it reports as unavailable
-          rather than showing old or invented rates.
+          Not covered, and shown as <span className="text-fg">not verified</span> in each grade: bug bounties, who can
+          upgrade the contracts, incident history, and depositor or collateral concentration. Missing inputs score
+          conservatively, and three or more of them cap a grade at B. Fees are StableSave&apos;s estimates of Solana
+          network costs.
         </p>
         <p>
-          Rates should be sampled from on-chain reserve state; liquidity from available reserve balances; the 30-day
-          yield history from an indexer. Incident history is curated by hand and cited.
+          Data:{" "}
+          <a href="https://defillama.com/yields" target="_blank" rel="noopener noreferrer" className="text-fg underline decoration-line-strong underline-offset-2">
+            DefiLlama
+          </a>
+          . Always check the official app before you deposit.
         </p>
       </ProseSection>
 

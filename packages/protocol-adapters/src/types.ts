@@ -23,11 +23,13 @@ export interface ProtocolMarket {
   yield: YieldBreakdown;
   tvlUsd: number;
   liquidityUsd: number;
-  depositors: number;
+  depositors: number | null;
   fees: FeeSchedule;
   risk: RiskData;
   /** Deep link into the official app for this market, if known. */
   officialUrl?: string;
+  /** Where the numbers can be checked (e.g. the DefiLlama pool page). */
+  sourceUrl?: string;
   updatedAt: string;
 }
 

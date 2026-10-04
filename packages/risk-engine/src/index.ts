@@ -8,5 +8,5 @@ export {
   SAFETY_DISCLAIMER,
   type SafetyGradeOptions,
 } from "./engine";
-export { FACTORS, type FactorDefinition, type FactorResult } from "./factors";
+export { FACTORS, UNKNOWN_SCORE, type FactorDefinition, type FactorResult } from "./factors";
 export { interpolate, interpolateLog, standardDeviation } from "./interpolate";
