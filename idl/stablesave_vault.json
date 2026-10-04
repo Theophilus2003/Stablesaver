@@ -1,0 +1,1711 @@
+{
+  "address": "FNeatGcWmVKVZq5BuXMQ2aaoAxjbfms6GzenerUHxWBj",
+  "metadata": {
+    "name": "stablesave_vault",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "StableSave Solana savings vault: share-based USDC vault with withdrawal limits, timelocks and an emergency pause."
+  },
+  "instructions": [
+    {
+      "name": "accept_authority",
+      "discriminator": [
+        107,
+        86,
+        198,
+        91,
+        33,
+        12,
+        107,
+        160
+      ],
+      "accounts": [
+        {
+          "name": "new_authority",
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "cancel_withdrawal",
+      "docs": [
+        "Return pending shares to the position."
+      ],
+      "discriminator": [
+        183,
+        104,
+        181,
+        250,
+        28,
+        128,
+        210,
+        70
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "reserve",
+          "relations": [
+            "vault"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "deposit",
+      "docs": [
+        "Deposit `amount` base units; mints at least `min_shares_out` shares."
+      ],
+      "discriminator": [
+        242,
+        35,
+        198,
+        137,
+        82,
+        225,
+        242,
+        182
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "owner_token",
+          "writable": true
+        },
+        {
+          "name": "reserve",
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "min_shares_out",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "execute_withdrawal",
+      "docs": [
+        "Pay out a pending request after its timelock."
+      ],
+      "discriminator": [
+        113,
+        121,
+        203,
+        232,
+        137,
+        139,
+        248,
+        249
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "owner_token",
+          "writable": true
+        },
+        {
+          "name": "reserve",
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "min_assets_out",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initialize_vault",
+      "docs": [
+        "Create the vault and its reserve for `mint` and `risk_profile` (0–2)."
+      ],
+      "discriminator": [
+        48,
+        191,
+        163,
+        44,
+        71,
+        129,
+        63,
+        164
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "docs": [
+            "Must be the program's upgrade authority, so nobody can front-run vault",
+            "creation and install themselves as admin."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "reserve",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  115,
+                  101,
+                  114,
+                  118,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "program",
+          "address": "FNeatGcWmVKVZq5BuXMQ2aaoAxjbfms6GzenerUHxWBj"
+        },
+        {
+          "name": "program_data"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "risk_profile",
+          "type": "u8"
+        },
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "InitializeVaultParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "pause",
+      "discriminator": [
+        211,
+        22,
+        221,
+        251,
+        74,
+        121,
+        193,
+        47
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "request_withdrawal",
+      "docs": [
+        "Lock `shares` for a timelocked (large) withdrawal."
+      ],
+      "discriminator": [
+        251,
+        85,
+        121,
+        205,
+        56,
+        201,
+        12,
+        177
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "reserve",
+          "relations": [
+            "vault"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "shares",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "set_guardian",
+      "discriminator": [
+        147,
+        243,
+        50,
+        121,
+        154,
+        164,
+        50,
+        30
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "guardian",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "transfer_authority",
+      "discriminator": [
+        48,
+        169,
+        76,
+        72,
+        229,
+        180,
+        55,
+        161
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "new_authority",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "unpause",
+      "discriminator": [
+        169,
+        144,
+        4,
+        38,
+        10,
+        141,
+        188,
+        255
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "update_limits",
+      "discriminator": [
+        89,
+        37,
+        137,
+        60,
+        75,
+        70,
+        48,
+        194
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "limits",
+          "type": {
+            "defined": {
+              "name": "VaultLimits"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_strategy",
+      "discriminator": [
+        16,
+        76,
+        138,
+        179,
+        171,
+        112,
+        196,
+        21
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "allocations",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "Allocation"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "withdraw",
+      "docs": [
+        "Instant withdrawal within the position's and vault's window limits."
+      ],
+      "discriminator": [
+        183,
+        18,
+        70,
+        156,
+        148,
+        109,
+        161,
+        34
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "owner_token",
+          "writable": true
+        },
+        {
+          "name": "reserve",
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "shares",
+          "type": "u64"
+        },
+        {
+          "name": "min_assets_out",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "UserPosition",
+      "discriminator": [
+        251,
+        248,
+        209,
+        245,
+        83,
+        234,
+        17,
+        27
+      ]
+    },
+    {
+      "name": "Vault",
+      "discriminator": [
+        211,
+        8,
+        232,
+        43,
+        2,
+        152,
+        117,
+        119
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "AuthorityTransferStarted",
+      "discriminator": [
+        226,
+        104,
+        201,
+        223,
+        128,
+        33,
+        164,
+        193
+      ]
+    },
+    {
+      "name": "AuthorityTransferred",
+      "discriminator": [
+        245,
+        109,
+        179,
+        54,
+        135,
+        92,
+        22,
+        64
+      ]
+    },
+    {
+      "name": "Deposited",
+      "discriminator": [
+        111,
+        141,
+        26,
+        45,
+        161,
+        35,
+        100,
+        57
+      ]
+    },
+    {
+      "name": "GuardianChanged",
+      "discriminator": [
+        152,
+        239,
+        217,
+        24,
+        162,
+        189,
+        236,
+        143
+      ]
+    },
+    {
+      "name": "LimitsUpdated",
+      "discriminator": [
+        160,
+        131,
+        108,
+        76,
+        91,
+        80,
+        118,
+        137
+      ]
+    },
+    {
+      "name": "PauseChanged",
+      "discriminator": [
+        238,
+        188,
+        213,
+        78,
+        134,
+        209,
+        178,
+        218
+      ]
+    },
+    {
+      "name": "StrategyUpdated",
+      "discriminator": [
+        103,
+        50,
+        233,
+        252,
+        65,
+        157,
+        43,
+        94
+      ]
+    },
+    {
+      "name": "VaultInitialized",
+      "discriminator": [
+        180,
+        43,
+        207,
+        2,
+        18,
+        71,
+        3,
+        75
+      ]
+    },
+    {
+      "name": "WithdrawalCancelled",
+      "discriminator": [
+        119,
+        175,
+        207,
+        80,
+        186,
+        237,
+        229,
+        9
+      ]
+    },
+    {
+      "name": "WithdrawalExecuted",
+      "discriminator": [
+        37,
+        78,
+        199,
+        192,
+        51,
+        68,
+        173,
+        162
+      ]
+    },
+    {
+      "name": "WithdrawalRequested",
+      "discriminator": [
+        75,
+        207,
+        21,
+        12,
+        160,
+        102,
+        150,
+        55
+      ]
+    },
+    {
+      "name": "Withdrawn",
+      "discriminator": [
+        20,
+        89,
+        223,
+        198,
+        194,
+        124,
+        219,
+        13
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Unauthorized",
+      "msg": "Signer is not allowed to perform this action"
+    },
+    {
+      "code": 6001,
+      "name": "VaultPaused",
+      "msg": "The vault is paused"
+    },
+    {
+      "code": 6002,
+      "name": "VaultNotPaused",
+      "msg": "The vault is not paused"
+    },
+    {
+      "code": 6003,
+      "name": "ZeroAmount",
+      "msg": "Amount must be greater than zero"
+    },
+    {
+      "code": 6004,
+      "name": "ZeroShares",
+      "msg": "Deposit is too small to mint any shares"
+    },
+    {
+      "code": 6005,
+      "name": "BelowMinimumDeposit",
+      "msg": "Deposit is below the vault minimum"
+    },
+    {
+      "code": 6006,
+      "name": "DepositCapExceeded",
+      "msg": "Deposit would exceed the vault's deposit cap"
+    },
+    {
+      "code": 6007,
+      "name": "SlippageExceeded",
+      "msg": "Result is worse than the minimum you accepted"
+    },
+    {
+      "code": 6008,
+      "name": "InsufficientShares",
+      "msg": "Not enough shares in this position"
+    },
+    {
+      "code": 6009,
+      "name": "InsufficientLiquidity",
+      "msg": "Not enough liquid funds in the vault reserve right now"
+    },
+    {
+      "code": 6010,
+      "name": "LargeWithdrawalRequiresTimelock",
+      "msg": "This withdrawal is above your instant limit; request a timelocked withdrawal instead"
+    },
+    {
+      "code": 6011,
+      "name": "VaultOutflowLimitReached",
+      "msg": "The vault's instant-withdrawal limit for this window has been reached; request a timelocked withdrawal instead"
+    },
+    {
+      "code": 6012,
+      "name": "WithdrawalAlreadyPending",
+      "msg": "A withdrawal request is already pending for this position"
+    },
+    {
+      "code": 6013,
+      "name": "NoPendingWithdrawal",
+      "msg": "There is no pending withdrawal request"
+    },
+    {
+      "code": 6014,
+      "name": "TimelockActive",
+      "msg": "The withdrawal timelock has not expired yet"
+    },
+    {
+      "code": 6015,
+      "name": "InvalidRiskProfile",
+      "msg": "Risk profile must be 0 (safe), 1 (balanced) or 2 (bigger)"
+    },
+    {
+      "code": 6016,
+      "name": "InvalidAllocationCount",
+      "msg": "A strategy needs between 1 and 8 allocations"
+    },
+    {
+      "code": 6017,
+      "name": "InvalidAllocationWeight",
+      "msg": "Each allocation weight must be greater than zero"
+    },
+    {
+      "code": 6018,
+      "name": "AllocationsMustSumToOneHundredPercent",
+      "msg": "Allocation weights must add up to 10,000 basis points"
+    },
+    {
+      "code": 6019,
+      "name": "DuplicateProtocol",
+      "msg": "A protocol can only appear once in a strategy"
+    },
+    {
+      "code": 6020,
+      "name": "InvalidLimits",
+      "msg": "Vault limits are outside the allowed bounds"
+    },
+    {
+      "code": 6021,
+      "name": "UnsupportedMint",
+      "msg": "Mint is not supported by this vault"
+    },
+    {
+      "code": 6022,
+      "name": "InvalidTokenAccount",
+      "msg": "Token account does not match the vault"
+    },
+    {
+      "code": 6023,
+      "name": "MathOverflow",
+      "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6024,
+      "name": "NotPendingAuthority",
+      "msg": "Signer is not the pending authority"
+    }
+  ],
+  "types": [
+    {
+      "name": "Allocation",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "protocol",
+            "type": {
+              "defined": {
+                "name": "Protocol"
+              }
+            }
+          },
+          {
+            "name": "weight_bps",
+            "docs": [
+              "Target share of vault assets, in basis points."
+            ],
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AuthorityTransferStarted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "pending_authority",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AuthorityTransferred",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Deposited",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "assets",
+            "type": "u64"
+          },
+          {
+            "name": "shares",
+            "type": "u64"
+          },
+          {
+            "name": "total_assets",
+            "type": "u64"
+          },
+          {
+            "name": "total_shares",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GuardianChanged",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "guardian",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InitializeVaultParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "guardian",
+            "type": "pubkey"
+          },
+          {
+            "name": "limits",
+            "type": {
+              "defined": {
+                "name": "VaultLimits"
+              }
+            }
+          },
+          {
+            "name": "allocations",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "Allocation"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "LimitsUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "limits",
+            "type": {
+              "defined": {
+                "name": "VaultLimits"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "PauseChanged",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "paused",
+            "type": "bool"
+          },
+          {
+            "name": "by",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Protocol",
+      "docs": [
+        "Protocols a strategy can allocate to. Mirrors `ONCHAIN_PROTOCOL_IDS` in",
+        "`@stablesave/core`."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Kamino"
+          },
+          {
+            "name": "Marginfi"
+          },
+          {
+            "name": "Drift"
+          },
+          {
+            "name": "Save"
+          }
+        ]
+      }
+    },
+    {
+      "name": "StrategyConfig",
+      "docs": [
+        "Target allocation for the vault. In this version funds stay in the vault",
+        "reserve; an allocator that deploys to protocols via CPI will read this",
+        "configuration (and the `StrategyUpdated` events) in a later release."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "version",
+            "docs": [
+              "Incremented on every update so clients can detect changes."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "allocations",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "Allocation"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "StrategyUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "version",
+            "type": "u32"
+          },
+          {
+            "name": "allocations",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "Allocation"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserPosition",
+      "docs": [
+        "A depositor's stake in one vault.",
+        "PDA: [\"position\", vault, owner]"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "version",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "shares",
+            "docs": [
+              "Shares available to withdraw (excludes pending)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "pending_shares",
+            "docs": [
+              "Shares locked in a timelocked withdrawal request."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "pending_requested_ts",
+            "type": "i64"
+          },
+          {
+            "name": "pending_unlock_ts",
+            "docs": [
+              "When the pending request can be executed."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "total_deposited",
+            "docs": [
+              "Lifetime totals, used to show earnings."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "total_withdrawn",
+            "type": "u64"
+          },
+          {
+            "name": "window_start_ts",
+            "docs": [
+              "Rolling instant-withdrawal window for this position."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "window_withdrawn",
+            "type": "u64"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "updated_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Vault",
+      "docs": [
+        "One vault per (mint, risk profile).",
+        "PDA: [\"vault\", mint, risk_profile]"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "version",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "reserve_bump",
+            "type": "u8"
+          },
+          {
+            "name": "risk_profile",
+            "docs": [
+              "0 = play it safe, 1 = balanced, 2 = go bigger."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "paused",
+            "type": "bool"
+          },
+          {
+            "name": "authority",
+            "docs": [
+              "Can change limits, strategy and roles, and unpause."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "pending_authority",
+            "docs": [
+              "Proposed new authority; must call `accept_authority`. Default = none."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "guardian",
+            "docs": [
+              "Can pause (not unpause) in an emergency."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "reserve",
+            "docs": [
+              "Token account holding liquid funds. PDA: [\"reserve\", vault]"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "total_shares",
+            "docs": [
+              "All outstanding shares, including shares locked in pending withdrawals."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "pending_withdrawal_shares",
+            "docs": [
+              "Shares locked in pending withdrawal requests."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "deployed_assets",
+            "docs": [
+              "Assets deployed to external protocols. Always 0 until the allocator ships."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "cumulative_deposits",
+            "type": "u64"
+          },
+          {
+            "name": "cumulative_withdrawals",
+            "type": "u64"
+          },
+          {
+            "name": "limits",
+            "type": {
+              "defined": {
+                "name": "VaultLimits"
+              }
+            }
+          },
+          {
+            "name": "strategy",
+            "type": {
+              "defined": {
+                "name": "StrategyConfig"
+              }
+            }
+          },
+          {
+            "name": "window_start_ts",
+            "docs": [
+              "Rolling instant-outflow window (vault-wide circuit breaker)."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "window_outflow",
+            "type": "u64"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "updated_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultInitialized",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "risk_profile",
+            "type": "u8"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "guardian",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultLimits",
+      "docs": [
+        "Configurable safety limits. All amounts are in token base units."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "deposit_cap",
+            "docs": [
+              "Maximum total assets the vault accepts."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "min_deposit",
+            "docs": [
+              "Smallest accepted deposit."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "large_withdrawal_threshold",
+            "docs": [
+              "Most a single position can withdraw instantly per window. Anything",
+              "larger goes through `request_withdrawal` and the timelock."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "withdrawal_timelock_seconds",
+            "docs": [
+              "Waiting period for timelocked withdrawals."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "window_seconds",
+            "docs": [
+              "Length of the rolling window for instant-withdrawal limits."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "vault_instant_outflow_cap",
+            "docs": [
+              "Circuit breaker: total instant withdrawals across all users per window."
+            ],
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WithdrawalCancelled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "shares",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WithdrawalExecuted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "shares",
+            "type": "u64"
+          },
+          {
+            "name": "assets",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WithdrawalRequested",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "shares",
+            "type": "u64"
+          },
+          {
+            "name": "estimated_assets",
+            "docs": [
+              "Value at request time. The final amount is priced when executed."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "unlock_ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Withdrawn",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "assets",
+            "type": "u64"
+          },
+          {
+            "name": "shares",
+            "type": "u64"
+          }
+        ]
+      }
+    }
+  ],
+  "constants": [
+    {
+      "name": "MAX_ALLOCATIONS",
+      "docs": [
+        "Maximum number of protocol allocations in a strategy."
+      ],
+      "type": "u8",
+      "value": "8"
+    },
+    {
+      "name": "POSITION_SEED",
+      "type": "bytes",
+      "value": "[112, 111, 115, 105, 116, 105, 111, 110]"
+    },
+    {
+      "name": "RESERVE_SEED",
+      "type": "bytes",
+      "value": "[114, 101, 115, 101, 114, 118, 101]"
+    },
+    {
+      "name": "VAULT_SEED",
+      "type": "bytes",
+      "value": "[118, 97, 117, 108, 116]"
+    }
+  ]
+}

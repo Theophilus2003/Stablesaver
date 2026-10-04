@@ -28,10 +28,6 @@ describe("opportunity service (demo)", () => {
     const grades = new Set(opportunities.map((o) => o.safety.grade));
     expect(grades.has("A")).toBe(true);
     expect(grades.size).toBeGreaterThanOrEqual(3);
-    // eslint-disable-next-line no-console
-    console.table(
-      opportunities.map((o) => ({ id: o.id, apy: (o.yield.totalApy * 100).toFixed(2), grade: o.safety.display, score: o.safety.score })),
-    );
   });
 
   it("recommends differently per risk profile", async () => {

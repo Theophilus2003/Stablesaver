@@ -1,0 +1,36 @@
+{
+  "name": "@stablesave/client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TypeScript client for the StableSave vault program, generated with Codama from the Anchor IDL.",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./generated": "./src/generated/index.ts",
+    "./web3js": "./src/web3js.ts"
+  },
+  "scripts": {
+    "generate": "node ../../scripts/generate-client.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@solana/kit": "^8.4.0",
+    "@solana/program-client-core": "^8.4.0"
+  },
+  "peerDependencies": {
+    "@solana/web3.js": "^1.98.0"
+  },
+  "peerDependenciesMeta": {
+    "@solana/web3.js": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@solana/web3.js": "^1.98.4",
+    "typescript": "5.9.3",
+    "vitest": "^4.1.11",
+    "@types/node": "^22.18.0"
+  }
+}
