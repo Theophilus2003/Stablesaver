@@ -44,11 +44,15 @@ pub fn assets_for_shares(shares: u64, total_assets: u64, total_shares: u64) -> R
 
 /// Fixed rolling window: resets when `now` is at least `window_seconds` past
 /// `start`. Returns the (possibly reset) start and amount.
+///
+/// A fresh account has `start == 0`, which is always more than a window ago
+/// on a real cluster. `0` is not treated as "unset": a cluster clock at 0
+/// (as in tests) must not reset the window on every call.
 pub fn roll_window(start: i64, amount: u64, now: i64, window_seconds: i64) -> Result<(i64, u64)> {
     let end = start
         .checked_add(window_seconds)
         .ok_or_else(|| error!(VaultError::MathOverflow))?;
-    if now >= end || start == 0 {
+    if now >= end {
         Ok((now, 0))
     } else {
         Ok((start, amount))
@@ -111,7 +115,10 @@ mod tests {
 
     #[test]
     fn window_rolls_over() {
-        assert_eq!(roll_window(0, 50, 1_000, 3_600).unwrap(), (1_000, 0));
+        // A fresh account (start 0) on a real clock starts a new window.
+        assert_eq!(roll_window(0, 0, 1_700_000_000, 3_600).unwrap(), (1_700_000_000, 0));
+        // A clock at 0 keeps counting within the window instead of resetting.
+        assert_eq!(roll_window(0, 50, 0, 3_600).unwrap(), (0, 50));
         assert_eq!(roll_window(1_000, 50, 2_000, 3_600).unwrap(), (1_000, 50));
         assert_eq!(roll_window(1_000, 50, 4_600, 3_600).unwrap(), (4_600, 0));
     }

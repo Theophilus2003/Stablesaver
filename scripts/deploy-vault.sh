@@ -42,6 +42,7 @@ solana program deploy "$OUT/stablesave_vault.so" \
   --program-id "$OUT/stablesave_vault-keypair.json" \
   --keypair "$OUT/deployer-keypair.json" \
   --url "$RPC_URL" \
-  --commitment confirmed
+  --commitment confirmed \
+  --max-sign-attempts 30
 
 pnpm -s --filter @stablesave/client devnet setup --rpc "$RPC_URL" --program "$PROGRAM_ID" "$@"

@@ -46,9 +46,9 @@ export function instantWithdrawalAllowance(
   nowSeconds: bigint,
 ): InstantAllowance {
   const window = vault.limits.windowSeconds;
-  const userUsed =
-    position.windowStartTs === 0n || nowSeconds >= position.windowStartTs + window ? 0n : position.windowWithdrawn;
-  const vaultUsed = vault.windowStartTs === 0n || nowSeconds >= vault.windowStartTs + window ? 0n : vault.windowOutflow;
+  // Mirrors `roll_window` in the program.
+  const userUsed = nowSeconds >= position.windowStartTs + window ? 0n : position.windowWithdrawn;
+  const vaultUsed = nowSeconds >= vault.windowStartTs + window ? 0n : vault.windowOutflow;
 
   const total = vaultTotalAssets(vault, reserveAmount);
   const candidates: Array<[bigint, InstantAllowance["limitedBy"]]> = [
