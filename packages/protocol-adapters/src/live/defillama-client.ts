@@ -65,8 +65,22 @@ export class DefiLlamaRequestError extends Error {
   }
 }
 
+/**
+ * The slice of `fetch` this client uses. Declared here rather than relying on
+ * the DOM / Node `Response` types, which differ between build setups.
+ */
+export interface FetchResponseLike {
+  ok: boolean;
+  status: number;
+  json(): Promise<unknown>;
+}
+export type FetchLike = (
+  url: string,
+  init: { headers: Record<string, string>; signal?: unknown; cache?: string },
+) => Promise<FetchResponseLike>;
+
 export interface DefiLlamaClientOptions {
-  fetch?: typeof globalThis.fetch;
+  fetch?: FetchLike;
   yieldsBaseUrl?: string;
   apiBaseUrl?: string;
   timeoutMs?: number;
@@ -84,7 +98,7 @@ interface CacheEntry<T> {
 }
 
 export class DefiLlamaClient {
-  private readonly fetchImpl: typeof globalThis.fetch;
+  private readonly fetchImpl: FetchLike;
   private readonly yieldsBaseUrl: string;
   private readonly apiBaseUrl: string;
   private readonly timeoutMs: number;
@@ -93,7 +107,7 @@ export class DefiLlamaClient {
   private readonly cache = new Map<string, CacheEntry<unknown>>();
 
   constructor(options: DefiLlamaClientOptions = {}) {
-    this.fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
+    this.fetchImpl = options.fetch ?? (globalThis.fetch.bind(globalThis) as unknown as FetchLike);
     this.yieldsBaseUrl = (options.yieldsBaseUrl ?? "https://yields.llama.fi").replace(/\/$/, "");
     this.apiBaseUrl = (options.apiBaseUrl ?? "https://api.llama.fi").replace(/\/$/, "");
     this.timeoutMs = options.timeoutMs ?? 20_000;
@@ -194,13 +208,13 @@ export class DefiLlamaClient {
   }
 
   private async getJson(url: string): Promise<unknown> {
-    let res: Response;
+    let res: FetchResponseLike;
     try {
       res = await this.fetchImpl(url, {
         headers: { accept: "application/json" },
-        signal: AbortSignal.timeout(this.timeoutMs),
+        signal: timeoutSignal(this.timeoutMs),
         cache: "no-store",
-      } as RequestInit);
+      });
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
       throw new DefiLlamaRequestError(url, `Couldn't reach DefiLlama (${reason})`);
@@ -212,6 +226,11 @@ export class DefiLlamaClient {
       throw new DefiLlamaRequestError(url, "DefiLlama returned invalid JSON");
     }
   }
+}
+
+function timeoutSignal(ms: number): unknown {
+  const ctor = (globalThis as { AbortSignal?: { timeout?: (ms: number) => unknown } }).AbortSignal;
+  return typeof ctor?.timeout === "function" ? ctor.timeout(ms) : undefined;
 }
 
 function parsePool(row: unknown): DefiLlamaPool | null {

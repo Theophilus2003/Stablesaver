@@ -24,6 +24,7 @@ export {
   DefiLlamaRequestError,
   getSharedDefiLlamaClient,
   type DefiLlamaClientOptions,
+  type FetchLike,
   type DefiLlamaPool,
   type DefiLlamaProtocol,
 } from "./live/defillama-client";

@@ -1,7 +1,7 @@
 import { blendStrategy, EXAMPLE_VAULT_STRATEGIES, recommend } from "@stablesave/core";
 import { describe, expect, it, vi } from "vitest";
 import { createDefaultAdapters, createOpportunityService } from "../service";
-import { DefiLlamaClient } from "./defillama-client";
+import { DefiLlamaClient, type FetchLike } from "./defillama-client";
 import { DefiLlamaMarketSource, SOLANA_STABLE_MINTS } from "./defillama-source";
 
 /**
@@ -74,7 +74,7 @@ function mockFetch(overrides: Partial<Record<"pools" | "lendBorrow" | "protocols
 
 describe("DefiLlamaMarketSource", () => {
   it("keeps only Solana single-asset USDC/USDT pools on canonical mints", async () => {
-    const client = new DefiLlamaClient({ fetch: mockFetch() as unknown as typeof fetch });
+    const client = new DefiLlamaClient({ fetch: mockFetch() as unknown as FetchLike });
     const markets = await new DefiLlamaMarketSource("kamino", { client }).listMarkets();
     expect(markets.map((m) => m.marketName)).toEqual(["Main Market", "JLP Market", "Main Market"]);
     expect(markets.map((m) => m.asset)).toEqual(["USDC", "USDC", "USDT"]);
@@ -82,7 +82,7 @@ describe("DefiLlamaMarketSource", () => {
   });
 
   it("converts percentages, derives liquidity and utilization, and links the source", async () => {
-    const client = new DefiLlamaClient({ fetch: mockFetch() as unknown as typeof fetch });
+    const client = new DefiLlamaClient({ fetch: mockFetch() as unknown as FetchLike });
     const [main] = await new DefiLlamaMarketSource("kamino", { client }).listMarkets();
     expect(main!.yield.totalApy).toBeCloseTo(0.052);
     expect(main!.yield.baseApy).toBeCloseTo(0.049);
@@ -99,7 +99,7 @@ describe("DefiLlamaMarketSource", () => {
   });
 
   it("leaves unknowns unknown instead of guessing", async () => {
-    const client = new DefiLlamaClient({ fetch: mockFetch() as unknown as typeof fetch });
+    const client = new DefiLlamaClient({ fetch: mockFetch() as unknown as FetchLike });
     const [drift] = await new DefiLlamaMarketSource("drift", { client }).listMarkets();
     expect(drift!.risk.utilization).toBeNull();
     expect(drift!.risk.audits).toBeNull();
@@ -112,7 +112,7 @@ describe("DefiLlamaMarketSource", () => {
 
   it("still works when optional endpoints fail", async () => {
     const fail = () => new Response("down", { status: 503 });
-    const client = new DefiLlamaClient({ fetch: mockFetch({ lendBorrow: fail, protocols: fail }) as unknown as typeof fetch });
+    const client = new DefiLlamaClient({ fetch: mockFetch({ lendBorrow: fail, protocols: fail }) as unknown as FetchLike });
     const [main] = await new DefiLlamaMarketSource("kamino", { client }).listMarkets();
     expect(main!.risk.utilization).toBeNull();
     expect(main!.liquidityUsd).toBe(300_000_000);
@@ -121,7 +121,7 @@ describe("DefiLlamaMarketSource", () => {
 
   it("downloads /pools once for all protocols", async () => {
     const fetch = mockFetch();
-    const client = new DefiLlamaClient({ fetch: fetch as unknown as typeof globalThis.fetch });
+    const client = new DefiLlamaClient({ fetch: fetch as unknown as FetchLike });
     await Promise.all(["kamino", "marginfi", "drift", "save"].map((p) => new DefiLlamaMarketSource(p as never, { client }).listMarkets()));
     expect(fetch.mock.calls.filter(([u]) => String(u).endsWith("/pools"))).toHaveLength(1);
   });
@@ -129,7 +129,7 @@ describe("DefiLlamaMarketSource", () => {
 
 describe("live opportunity service", () => {
   it("rates live markets and labels them live", async () => {
-    const client = new DefiLlamaClient({ fetch: mockFetch() as unknown as typeof fetch });
+    const client = new DefiLlamaClient({ fetch: mockFetch() as unknown as FetchLike });
     const service = createOpportunityService({ adapters: createDefaultAdapters("live", { client }) });
     const snapshot = await service.getSnapshot();
     expect(snapshot.mode).toBe("live");
@@ -150,7 +150,7 @@ describe("live opportunity service", () => {
     const fetch = vi.fn(async () => {
       throw new TypeError("fetch failed");
     });
-    const client = new DefiLlamaClient({ fetch: fetch as unknown as typeof globalThis.fetch });
+    const client = new DefiLlamaClient({ fetch: fetch as unknown as FetchLike });
     const snapshot = await createOpportunityService({ adapters: createDefaultAdapters("live", { client }) }).getSnapshot();
     expect(snapshot.mode).toBe("live");
     expect(snapshot.opportunities).toEqual([]);

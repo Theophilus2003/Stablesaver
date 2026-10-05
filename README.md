@@ -33,6 +33,17 @@ Optional API: `pnpm dev:api` (http://localhost:4000), then set `STABLESAVE_API_U
 | `pnpm idl:build` | Regenerate `idl/stablesave_vault.json` from the program (needs Anchor CLI) |
 | `pnpm generate:client` | Regenerate the Codama client from the IDL |
 
+## Deploying to Vercel
+
+Import the repo and create **one project per app** ("Import single project"), not the multi-service preset:
+
+| Project | Root Directory | Notes |
+| --- | --- | --- |
+| Website | `apps/web` | Next.js, auto-detected. No environment variables required. |
+| API (optional) | `apps/api` | `apps/api/vercel.json` bundles the Hono app with esbuild into a single function (Build Output API). The website doesn't need it. |
+
+Keep "Include files outside of the root directory in the Build Step" enabled; both apps import `packages/*`.
+
 ## Demo data, devnet and mainnet
 
 Three separate things, each visible in the UI:
