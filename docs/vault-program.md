@@ -62,11 +62,14 @@ cargo test -p stablesave-vault
 # IDL + client
 pnpm idl:build && pnpm generate:client
 
-# Devnet
-anchor keys sync
-anchor deploy --provider.cluster devnet
-pnpm --filter @stablesave/client init-vaults -- --rpc https://api.devnet.solana.com --mint <devnet USDC>
+# Devnet: build for your key's program id, deploy, create a test token, send some to a wallet, open the vaults
+STABLESAVE_DEPLOYER_KEY="$(cat ~/.config/solana/id.json)" \
+  scripts/deploy-vault.sh https://api.devnet.solana.com --to <wallet>
 ```
+
+Or run the **Vault program** workflow in GitHub Actions; see [devnet-testing.md](devnet-testing.md). On every
+change to the program or client, the same workflow builds the program, runs these tests for real and rehearses
+the whole deploy (including a deposit and withdrawal) on a local validator.
 
 The LiteSVM tests in `tests/vault.rs` load `target/deploy/stablesave_vault.so`; without it they print a notice and
 skip. They cover upgrade-authority gating, deposit + instant withdrawal limits, the timelock path, guardian pause vs

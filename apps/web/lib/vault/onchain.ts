@@ -64,6 +64,18 @@ export function associatedTokenAddress(owner: string, mint: string): Address {
   return address(ata.toBase58());
 }
 
+/** The owner's balance of the vault token, in whole units. 0 when they have no token account yet. */
+export async function walletTokenBalance(config: OnchainConfig, owner: string): Promise<number> {
+  const rpc = createSolanaRpc(config.rpcUrl);
+  try {
+    const { value } = await rpc.getTokenAccountBalance(associatedTokenAddress(owner, config.mint)).send();
+    return fromBaseUnits(BigInt(value.amount), value.decimals);
+  } catch (error) {
+    if (/could not find account|Invalid param/i.test(error instanceof Error ? error.message : String(error))) return 0;
+    throw error;
+  }
+}
+
 /** Load every risk-profile vault for the configured mint, plus the owner's positions. */
 export async function loadVaults(config: OnchainConfig, owner?: string): Promise<OnchainVaultState[]> {
   const rpc = createSolanaRpc(config.rpcUrl);

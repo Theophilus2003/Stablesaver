@@ -10,6 +10,7 @@ import {
   executeOnchain,
   loadVaults,
   onchainPortfolio,
+  walletTokenBalance,
   strategyFromVault,
   withdrawOnchain,
   type OnchainVaultState,
@@ -43,6 +44,8 @@ export interface VaultController {
   ready: boolean;
   error: string | null;
   portfolio: Portfolio | null;
+  /** On-chain with a wallet connected: how much of the vault token the wallet holds. Otherwise null. */
+  walletBalance: number | null;
   /** On-chain: vaults that exist for the configured mint. */
   availableProfiles: RiskProfile[];
   /** Example weights in preview; the vault's on-chain weights once deployed. */
@@ -101,6 +104,7 @@ function useSimulatedVault(opportunities: readonly RatedOpportunity[]): VaultCon
     ready: state !== null,
     error: null,
     portfolio,
+    walletBalance: null,
     availableProfiles: ["safe", "balanced", "bigger"],
     strategyFor: (profile) => EXAMPLE_VAULT_STRATEGIES[profile],
     limits: PREVIEW_LIMITS,
@@ -143,6 +147,7 @@ function useOnchainVault(opportunities: readonly RatedOpportunity[]): VaultContr
   const { publicKey, sendTransaction } = useWallet();
   const owner = publicKey?.toBase58();
   const [vaults, setVaults] = React.useState<OnchainVaultState[] | null>(null);
+  const [walletBalance, setWalletBalance] = React.useState<number | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [tick, setTick] = React.useState(0);
 
@@ -161,6 +166,13 @@ function useOnchainVault(opportunities: readonly RatedOpportunity[]): VaultContr
         }
       })
       .catch((e: unknown) => !cancelled && setError(e instanceof Error ? e.message : String(e)));
+    if (owner) {
+      walletTokenBalance(config, owner)
+        .then((b) => !cancelled && setWalletBalance(b))
+        .catch(() => !cancelled && setWalletBalance(null));
+    } else {
+      setWalletBalance(null);
+    }
     return () => {
       cancelled = true;
     };
@@ -190,6 +202,7 @@ function useOnchainVault(opportunities: readonly RatedOpportunity[]): VaultContr
     ready: vaults !== null || error !== null,
     error,
     portfolio,
+    walletBalance,
     availableProfiles: (vaults ?? []).map((v) => v.profile),
     strategyFor(profile) {
       const target = vaults?.find((v) => v.profile === profile);

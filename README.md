@@ -46,6 +46,13 @@ Import the repo and create **one project per app** ("Import single project"), no
 
 Keep "Include files outside of the root directory in the Build Step" enabled; both apps import `packages/*`.
 
+## Testing the vault on devnet
+
+The vault runs as a simulated preview until its program is deployed. To test it with a real (worthless) devnet
+token, add a `DEVNET_DEPLOYER_KEY` secret and run the **Vault program** workflow in GitHub Actions: it builds and
+tests the program, deploys it to devnet, creates a test token, sends some to your wallet and opens the vaults. Then
+set the three `NEXT_PUBLIC_*` values it prints in Vercel. Step by step: [docs/devnet-testing.md](docs/devnet-testing.md).
+
 ## Demo data, devnet and mainnet
 
 Three separate things, each visible in the UI:
@@ -97,6 +104,7 @@ Everything is computed from the data layer: nothing in the UI is a hard-coded ra
 
 - [Architecture](docs/architecture.md): packages, data flow, adapter interface, going live
 - [Vault program](docs/vault-program.md): accounts, PDAs, instructions, safety controls, build/test/deploy
+- [Testing on devnet](docs/devnet-testing.md): deploy from GitHub Actions, get test tokens, point the site at it
 - [Risk methodology](docs/risk-methodology.md): factors, weights, caps, grade scale
 - [Client](packages/client/README.md): using the Codama client
 
@@ -107,5 +115,6 @@ Everything is computed from the data layer: nothing in the UI is a hard-coded ra
 - Protocol websites for non-vault protocols come from DefiLlama's listing, not a StableSave-curated list.
 - Vault allocation: the program stores and validates strategy weights, but funds stay in the vault reserve. The
   allocator that deploys into Kamino / MarginFi / Drift / Save via CPI is the next milestone.
-- The vault program is unaudited. The SBF build and LiteSVM tests need the Solana toolchain (`anchor build`).
+- The vault program is unaudited. The SBF build and LiteSVM tests run in GitHub Actions (`Vault program`
+  workflow), or locally with the Solana toolchain.
 - Direct deposits link out to the official apps; adapters don't build protocol transactions yet.

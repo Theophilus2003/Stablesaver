@@ -21,6 +21,7 @@ import { useEnvironment } from "@/components/providers/environment";
 import { AmountField } from "@/components/save/amount-field";
 import { useWalletDialog } from "@/components/wallet/wallet-providers";
 import { formatAmountInput, formatEarnings, formatPercent, formatUsd, parseAmount } from "@/lib/format";
+import { CLUSTER_LABEL } from "@/lib/env";
 import { describeTxError } from "@/lib/vault/onchain";
 import { useVault } from "./use-vault";
 import { TxProgress, VaultModeBanner, allocationSegments, type TxPhase } from "./vault-parts";
@@ -59,7 +60,9 @@ export function DepositFlow({
     [profile, snapshot.opportunities, amount, vault.availableProfiles.join()],
   );
   const limits = vault.limits;
-  const amountValid = amount >= limits.minDeposit;
+  const balance = vault.walletBalance;
+  const overBalance = !simulated && balance !== null && amount > balance;
+  const amountValid = amount >= limits.minDeposit && !overBalance;
   const profileAvailable = vault.availableProfiles.includes(profile);
 
   async function submit() {
@@ -136,7 +139,32 @@ export function DepositFlow({
                   value={amountText}
                   onChange={setAmountText}
                   asset="USDC"
-                  hint={simulated ? "Preview mode: any amount works, nothing leaves your wallet." : undefined}
+                  hint={
+                    simulated ? (
+                      "Preview mode: any amount works, nothing leaves your wallet."
+                    ) : balance === null ? (
+                      connected ? "Checking your wallet…" : "Connect a wallet to see your balance."
+                    ) : balance === 0 ? (
+                      <span className="text-warning">
+                        This wallet has none of the vault&apos;s token on {CLUSTER_LABEL[env.cluster]}.
+                        {env.cluster === "devnet" ? " Run the devnet workflow with your wallet address to get test tokens." : ""}
+                      </span>
+                    ) : (
+                      <span className={overBalance ? "text-warning" : undefined}>
+                        In your wallet: {formatUsd(balance, { decimals: 2 })}
+                        {overBalance ? " · that's less than this amount" : null}{" "}
+                        {!overBalance ? (
+                          <button
+                            type="button"
+                            className="ml-1 font-medium text-fg underline decoration-line-strong underline-offset-2"
+                            onClick={() => setAmountText(formatAmountInput(String(Math.floor(balance * 100) / 100)))}
+                          >
+                            Use max
+                          </button>
+                        ) : null}
+                      </span>
+                    )
+                  }
                 />
                 <Button size="lg" className="mt-7 w-full" disabled={!amountValid} onClick={() => setStep(2)}>
                   Continue
