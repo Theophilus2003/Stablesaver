@@ -237,14 +237,16 @@ export const yieldVolatility: FactorDefinition = {
   weight: 8,
   evaluate(o) {
     const rewardShare = o.yield.totalApy > 0 ? o.yield.rewardApy / o.yield.totalApy : 0;
-    if (o.risk.apyHistory30d.length < 5) {
+    const hasSeries = o.risk.apyHistory30d.length >= 5;
+    const reported = o.risk.apyVolatility ?? null;
+    if (!hasSeries && reported === null) {
       return {
         score: UNKNOWN_SCORE - (rewardShare > 0.3 ? 10 : 0),
         known: false,
         detail: "Not enough rate history to judge how stable this rate is.",
       };
     }
-    const sdPoints = standardDeviation(o.risk.apyHistory30d) * 100;
+    const sdPoints = (hasSeries ? standardDeviation(o.risk.apyHistory30d) : reported!) * 100;
     let score = interpolate(sdPoints, [
       [0, 100],
       [0.25, 95],
@@ -256,7 +258,7 @@ export const yieldVolatility: FactorDefinition = {
     ]);
     if (rewardShare > 0.5) score -= 20;
     else if (rewardShare > 0.3) score -= 10;
-    const swing = `Moved about ±${sdPoints.toFixed(1)} points over 30 days.`;
+    const swing = `Moved about ±${sdPoints.toFixed(1)} points ${hasSeries ? "over 30 days" : "over its history"}.`;
     const rewards =
       rewardShare > 0.3
         ? ` ${formatPercent(rewardShare, 0)} of the rate comes from token rewards, which can end at any time.`

@@ -1,6 +1,6 @@
 "use client";
 
-import { RISK_PROFILES, type RankedOption, type RiskProfile } from "@stablesave/core";
+import { GRADE_LABELS, RISK_PROFILES, getNetwork, type RankedOption, type RiskProfile } from "@stablesave/core";
 import { AnimatedNumber, Badge, GradeBadge, Panel, ProtocolMark, cn } from "@stablesave/ui";
 import { ChevronRight, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -11,14 +11,26 @@ export interface EarningsPanelProps {
   amount: number;
   profile: RiskProfile;
   pinned: boolean;
+  /** `option` is the closest match, not a fit: nothing meets the risk setting. */
+  belowSetting?: boolean;
   onOpen: (id: string) => void;
   onUnpin: () => void;
   /** No market data at all (e.g. the live source is down). */
   unavailable?: boolean;
 }
 
-export function EarningsPanel({ option, amount, profile, pinned, onOpen, onUnpin, unavailable = false }: EarningsPanelProps) {
+export function EarningsPanel({
+  option,
+  amount,
+  profile,
+  pinned,
+  belowSetting = false,
+  onOpen,
+  onUnpin,
+  unavailable = false,
+}: EarningsPanelProps) {
   const o = option?.opportunity;
+  const network = o ? getNetwork(o.network, o.networkName) : null;
   const net = option ? option.estimate.netEarnings : 0;
   const apy = o ? o.yield.totalApy : 0;
   const empty = amount <= 0;
@@ -70,15 +82,15 @@ export function EarningsPanel({ option, amount, profile, pinned, onOpen, onUnpin
           >
             <AnimatePresence mode="popLayout" initial={false}>
               <motion.span
-                key={o.protocolId}
+                key={o.id}
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.2 }}
                 className="flex items-center gap-2"
               >
-                <ProtocolMark protocolId={o.protocolId} name={o.protocolName} size="sm" />
-                {o.protocolName}
+                <ProtocolMark protocolId={o.protocolId} name={o.protocolName} logoUrl={o.protocolLogo} network={network} size="sm" />
+                <span className="max-w-[9rem] truncate sm:max-w-[12rem]">{o.protocolName}</span>
               </motion.span>
             </AnimatePresence>
             <ChevronRight className="size-4 text-fg-subtle transition-transform group-hover:translate-x-0.5" />
@@ -100,7 +112,7 @@ export function EarningsPanel({ option, amount, profile, pinned, onOpen, onUnpin
           </div>
           <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-4 text-xs">
             <span className="min-w-0 truncate text-fg-muted">
-              {o.productName} · {o.marketName}
+              {o.marketName} · {network!.name}
             </span>
             {pinned ? (
               <button
@@ -111,10 +123,18 @@ export function EarningsPanel({ option, amount, profile, pinned, onOpen, onUnpin
                 Your pick
                 <X className="size-3.5" />
               </button>
+            ) : belowSetting ? (
+              <span className="shrink-0 text-warning">Below “{RISK_PROFILES[profile].label}”</span>
             ) : (
               <span className="shrink-0 text-fg-subtle">Best fit for “{RISK_PROFILES[profile].label}”</span>
             )}
           </div>
+          {belowSetting ? (
+            <p className="mt-3 rounded-xl border border-warning/20 bg-warning/[0.06] px-3 py-2 text-xs leading-relaxed text-fg-muted">
+              Nothing is graded {RISK_PROFILES[profile].minGrade} ({GRADE_LABELS[RISK_PROFILES[profile].minGrade].toLowerCase()})
+              right now, so this is the safest option we found. Grades stay lower while risk inputs are unverified.
+            </p>
+          ) : null}
         </>
       ) : (
         <p className="mt-4 text-sm leading-relaxed text-fg-muted">

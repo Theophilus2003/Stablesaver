@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   if (!opportunity) return { title: "Option not found" };
   return {
     title: `${opportunity.protocolName} ${opportunity.productName}`,
-    description: `${opportunity.protocolName} ${opportunity.productName} on Solana: rate, safety grade, liquidity and fees.`,
+    description: `${opportunity.protocolName} ${opportunity.productName} on ${opportunity.networkName}: rate, safety grade, liquidity and fees.`,
   };
 }
 

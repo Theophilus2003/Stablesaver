@@ -1,5 +1,5 @@
 import { summarizeMarket, type MarketSnapshot } from "@stablesave/core";
-import { createDefaultAdapters, createOpportunityService, type OpportunityService } from "@stablesave/protocol-adapters";
+import { createDefaultProviders, createOpportunityService, type OpportunityService } from "@stablesave/protocol-adapters";
 import { METHODOLOGY_VERSION } from "@stablesave/risk-engine";
 import { getDataMode } from "../env";
 
@@ -7,7 +7,7 @@ import { getDataMode } from "../env";
  * Market data access for server components.
  *
  * - With STABLESAVE_API_URL set, read from apps/api.
- * - Otherwise run the protocol adapters in-process.
+ * - Otherwise load and rate the data in-process.
  *
  * Either way the snapshot carries its own `mode`, and the UI labels demo data.
  */
@@ -15,7 +15,7 @@ import { getDataMode } from "../env";
 let service: OpportunityService | undefined;
 
 function localService(): OpportunityService {
-  service ??= createOpportunityService({ adapters: createDefaultAdapters(getDataMode()) });
+  service ??= createOpportunityService({ providers: createDefaultProviders(getDataMode()) });
   return service;
 }
 

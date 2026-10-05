@@ -1,13 +1,15 @@
 # StableSave
 
-See what your idle USDC and USDT could earn on Solana, compare yield and risk, and choose where your money goes.
+See what your idle USDC and USDT could earn across networks, compare yield, fees and risk, and choose where your money
+goes.
 
 StableSave is a stablecoin savings and yield-discovery app. Enter an amount, pick a risk level, and see an estimated
-yearly return after fees, an A–D safety grade, and the options that fit. Deposit directly on the official protocol,
-or use the StableSave Vault, which splits one deposit across Solana protocols.
+yearly return after fees (network fees included), an A–D safety grade, and the options that fit, on every network
+DefiLlama tracks: Ethereum, Solana, Arbitrum, Base, BSC, Avalanche, Plasma and more. Deposit directly on the official
+protocol, or use the StableSave Vault, which splits one deposit across Solana protocols.
 
-> **Status:** market data is **live from DefiLlama** by default (rates, deposits, liquidity, 30-day rate history and
-> protocol metadata), with labelled demo fixtures available offline. The vault program is written and tested on the
+> **Status:** market data is **live from DefiLlama** by default (rates, deposits, liquidity, rate stability and
+> protocol metadata for every USDC/USDT pool on every network), with labelled demo fixtures available offline. The vault program is written and tested on the
 > host but **not deployed**, so the vault UI runs as a labelled **simulated preview** until you configure a deployed
 > program. Nothing here is financial advice.
 
@@ -54,9 +56,10 @@ Three separate things, each visible in the UI:
 | Solana cluster | `NEXT_PUBLIC_SOLANA_CLUSTER` = `devnet` \| `mainnet-beta` \| `localnet` | `devnet` | **Devnet** / **Mainnet** badge on vault pages |
 | Vault deployment | `NEXT_PUBLIC_STABLESAVE_VAULT_PROGRAM_ID` + `NEXT_PUBLIC_STABLESAVE_VAULT_MINT` | unset | **Preview** + "Simulated" banners until both are set |
 
-`live` mode never falls back to demo numbers: if DefiLlama can't be reached, each protocol reports as unavailable and
-the UI says so. Risk inputs DefiLlama doesn't provide (bug bounties, upgrade controls, incident history,
-concentration) are shown as **not verified** and scored conservatively. See `apps/web/.env.example`.
+`live` mode never falls back to demo numbers: if DefiLlama can't be reached, the data source reports as unavailable
+and the UI says so. Risk inputs DefiLlama doesn't provide (bug bounties, upgrade controls, incident history,
+concentration) are shown as **not verified** and scored conservatively. Network fees are per-chain estimates (see
+the Data sources page). See `apps/web/.env.example`.
 
 ## Repository layout
 
@@ -69,7 +72,7 @@ programs/
 packages/
   core/                     Domain types, earnings math, risk profiles, vault strategy config, recommendations
   risk-engine/              calculateSafetyGrade() → { grade, score, reasons, factors, caps }
-  protocol-adapters/        YieldProtocolAdapter + Kamino / MarginFi / Drift / Save adapters, OpportunityService
+  protocol-adapters/        All-network DefiLlama provider, Kamino / MarginFi / Drift / Save adapters, OpportunityService
   client/                   Codama-generated TS client for the vault + hand-written helpers
   ui/                       Design-system primitives (shadcn/ui-style)
 idl/stablesave_vault.json   Anchor IDL (input to Codama)
@@ -80,6 +83,7 @@ docs/                       Architecture, vault program, risk methodology
 ## The main flow
 
 1. **What are you saving?** Amount + USDC/USDT, quick amounts.
+   Options on every network, filterable by network, with each network's fees counted in the estimate.
 2. **How much risk are you okay with?** Play it safe · Balanced · Go bigger.
 3. **You could earn** `amount × estimated APY − fees`, labelled *Estimated*, with the grade and protocol.
 4. **Here's why**: tap the protocol for the detail drawer: APY, earnings, grade with reasons and all nine factors,
@@ -99,7 +103,8 @@ Everything is computed from the data layer: nothing in the UI is a hard-coded ra
 ## Known gaps
 
 - Risk inputs beyond DefiLlama's data (bug bounties, upgrade authority, incident history, concentration) aren't
-  sourced yet; they show as "not verified". Fees are StableSave estimates.
+  sourced yet; they show as "not verified". Network fees are per-chain estimates, not live gas prices.
+- Protocol websites for non-vault protocols come from DefiLlama's listing, not a StableSave-curated list.
 - Vault allocation: the program stores and validates strategy weights, but funds stay in the vault reserve. The
   allocator that deploys into Kamino / MarginFi / Drift / Save via CPI is the next milestone.
 - The vault program is unaudited. The SBF build and LiteSVM tests need the Solana toolchain (`anchor build`).

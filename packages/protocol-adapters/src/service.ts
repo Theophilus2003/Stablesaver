@@ -11,28 +11,35 @@ import { DriftAdapter } from "./adapters/drift";
 import { KaminoAdapter } from "./adapters/kamino";
 import { MarginfiAdapter } from "./adapters/marginfi";
 import { SaveAdapter } from "./adapters/save";
+import { DemoMultichainProvider } from "./demo/multichain";
 import { DemoMarketSource } from "./demo/source";
-import { DefiLlamaMarketSource, type DefiLlamaSourceOptions } from "./live/defillama-source";
-import type { MarketDataSource, YieldProtocolAdapter } from "./types";
+import { DefiLlamaMarketsProvider, type DefiLlamaProviderOptions } from "./live/defillama-source";
+import type { OpportunityProvider, YieldProtocolAdapter } from "./types";
 
+/** Protocols with an adapter (the ones the StableSave Vault can allocate to). */
 export const SUPPORTED_PROTOCOLS: readonly ProtocolId[] = ["kamino", "marginfi", "drift", "save"];
 
-/** `demo` → illustrative fixtures; `live` → DefiLlama's public yields API. */
-export function createSource(protocol: ProtocolId, mode: DataMode, live: DefiLlamaSourceOptions = {}): MarketDataSource {
-  return mode === "demo" ? new DemoMarketSource(protocol) : new DefiLlamaMarketSource(protocol, live);
-}
-
-export function createDefaultAdapters(mode: DataMode, live: DefiLlamaSourceOptions = {}): YieldProtocolAdapter[] {
+/** The four Solana vault protocols on illustrative fixtures. */
+export function createDemoAdapters(): YieldProtocolAdapter[] {
   return [
-    new KaminoAdapter(createSource("kamino", mode, live)),
-    new MarginfiAdapter(createSource("marginfi", mode, live)),
-    new DriftAdapter(createSource("drift", mode, live)),
-    new SaveAdapter(createSource("save", mode, live)),
+    new KaminoAdapter(new DemoMarketSource("kamino")),
+    new MarginfiAdapter(new DemoMarketSource("marginfi")),
+    new DriftAdapter(new DemoMarketSource("drift")),
+    new SaveAdapter(new DemoMarketSource("save")),
   ];
 }
 
+/**
+ * `live` → every USDC/USDT pool DefiLlama tracks, on every network.
+ * `demo` → illustrative fixtures: the four Solana vault protocols plus a few
+ * options on other networks.
+ */
+export function createDefaultProviders(mode: DataMode, live: DefiLlamaProviderOptions = {}): OpportunityProvider[] {
+  return mode === "demo" ? [...createDemoAdapters(), new DemoMultichainProvider()] : [new DefiLlamaMarketsProvider(live)];
+}
+
 export interface OpportunityServiceOptions {
-  adapters: YieldProtocolAdapter[];
+  providers: OpportunityProvider[];
   /** Cache snapshots for this long (ms). Defaults to 60s. */
   ttlMs?: number;
   now?: () => Date;
@@ -44,36 +51,36 @@ export interface OpportunityService {
 }
 
 /**
- * Collects markets from every adapter, rates them with the risk engine and
- * returns one snapshot. A failing adapter is reported as `unavailable`; its
- * markets are left out rather than replaced with placeholder numbers.
+ * Collects opportunities from every provider, rates them with the risk engine
+ * and returns one snapshot. A failing provider is reported as `unavailable`;
+ * its markets are left out rather than replaced with placeholder numbers.
  */
-export function createOpportunityService({ adapters, ttlMs = 60_000, now = () => new Date() }: OpportunityServiceOptions): OpportunityService {
+export function createOpportunityService({ providers, ttlMs = 60_000, now = () => new Date() }: OpportunityServiceOptions): OpportunityService {
   let cache: { at: number; snapshot: Promise<MarketSnapshot> } | undefined;
 
   async function build(): Promise<MarketSnapshot> {
-    const results = await Promise.allSettled(adapters.map((a) => a.listOpportunities()));
+    const results = await Promise.allSettled(providers.map((p) => p.listOpportunities()));
     const statuses: AdapterStatus[] = [];
     const opportunities: RatedOpportunity[] = [];
     const ratedAt = now();
 
     results.forEach((result, i) => {
-      const adapter = adapters[i]!;
+      const provider = providers[i]!;
       if (result.status === "fulfilled") {
         const rated = rateOpportunities(result.value, { now: ratedAt });
         opportunities.push(...rated);
         statuses.push({
-          protocolId: adapter.id,
-          name: adapter.name,
-          mode: adapter.source.mode,
+          id: provider.id,
+          name: provider.name,
+          mode: provider.mode,
           status: "ok",
           opportunityCount: rated.length,
         });
       } else {
         statuses.push({
-          protocolId: adapter.id,
-          name: adapter.name,
-          mode: adapter.source.mode,
+          id: provider.id,
+          name: provider.name,
+          mode: provider.mode,
           status: "unavailable",
           message: result.reason instanceof Error ? result.reason.message : String(result.reason),
           opportunityCount: 0,
@@ -81,8 +88,8 @@ export function createOpportunityService({ adapters, ttlMs = 60_000, now = () =>
       }
     });
 
-    // One demo source makes the whole snapshot demo: the UI labels it as such.
-    const mode: DataMode = adapters.every((a) => a.source.mode === "live") ? "live" : "demo";
+    // One demo provider makes the whole snapshot demo: the UI labels it as such.
+    const mode: DataMode = providers.every((p) => p.mode === "live") ? "live" : "demo";
 
     return {
       mode,

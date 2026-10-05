@@ -7,9 +7,10 @@ import {
   isRiskProfile,
   recommend,
   type DataMode,
+  type RankedOption,
   type StableAsset,
 } from "@stablesave/core";
-import { createDefaultAdapters, createOpportunityService, type OpportunityService } from "@stablesave/protocol-adapters";
+import { createDefaultProviders, createOpportunityService, type OpportunityService } from "@stablesave/protocol-adapters";
 import { METHODOLOGY_VERSION, SAFETY_DISCLAIMER } from "@stablesave/risk-engine";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -24,22 +25,25 @@ export interface AppOptions {
  * `mode`, so clients can label demo data.
  */
 export function createApp({ mode, service }: AppOptions) {
-  const opportunities = service ?? createOpportunityService({ adapters: createDefaultAdapters(mode) });
+  const opportunities = service ?? createOpportunityService({ providers: createDefaultProviders(mode) });
   const app = new Hono();
 
   app.use("*", cors({ origin: "*", allowMethods: ["GET"] }));
 
   app.get("/health", (c) => c.json({ ok: true, mode, methodologyVersion: METHODOLOGY_VERSION }));
 
-  /** Full rated snapshot. */
+  /** Full rated snapshot. Optional filters: `asset` (USDC | USDT), `network` (e.g. solana, ethereum). */
   app.get("/v1/opportunities", async (c) => {
     const snapshot = await opportunities.getSnapshot();
     const asset = c.req.query("asset")?.toUpperCase();
+    const network = c.req.query("network")?.toLowerCase();
     c.header("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
-    if (asset && (STABLE_ASSETS as readonly string[]).includes(asset)) {
-      return c.json({ ...snapshot, opportunities: snapshot.opportunities.filter((o) => o.asset === asset) });
-    }
-    return c.json(snapshot);
+    const byAsset = asset && (STABLE_ASSETS as readonly string[]).includes(asset);
+    if (!byAsset && !network) return c.json(snapshot);
+    return c.json({
+      ...snapshot,
+      opportunities: snapshot.opportunities.filter((o) => (!byAsset || o.asset === asset) && (!network || o.network === network)),
+    });
   });
 
   app.get("/v1/opportunities/:id", async (c) => {
@@ -66,15 +70,12 @@ export function createApp({ mode, service }: AppOptions) {
       amount,
       asset,
       profile,
-      best: rec.best && {
-        opportunityId: rec.best.opportunity.id,
-        protocol: rec.best.opportunity.protocolName,
-        apy: rec.best.opportunity.yield.totalApy,
-        grade: rec.best.opportunity.safety.display,
-        estimate: rec.best.estimate,
-      },
+      best: rec.best && summarize(rec.best),
+      /** Only when nothing meets the risk setting: the safest option that otherwise works. */
+      closest: rec.closest && summarize(rec.closest),
       ranked: rec.ranked.map((r) => ({
         opportunityId: r.opportunity.id,
+        network: r.opportunity.network,
         eligible: r.eligible,
         ineligibleReason: r.ineligibleReason ?? null,
         apy: r.opportunity.yield.totalApy,
@@ -90,6 +91,17 @@ export function createApp({ mode, service }: AppOptions) {
       },
     });
   });
+
+  function summarize(r: RankedOption) {
+    return {
+      opportunityId: r.opportunity.id,
+      protocol: r.opportunity.protocolName,
+      network: r.opportunity.network,
+      apy: r.opportunity.yield.totalApy,
+      grade: r.opportunity.safety.display,
+      estimate: r.estimate,
+    };
+  }
 
   /** Example vault strategies (labelled as examples). */
   app.get("/v1/strategies", async (c) => {

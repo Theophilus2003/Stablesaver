@@ -58,12 +58,24 @@ export interface AdapterCapabilities {
 }
 
 /**
- * Common interface for every yield protocol StableSave compares.
+ * Anything that can list opportunities: one protocol adapter, or an aggregator
+ * covering many protocols and networks (DefiLlama).
+ */
+export interface OpportunityProvider {
+  readonly id: string;
+  readonly name: string;
+  readonly mode: DataMode;
+  /** Every market as a normalized opportunity (unrated). */
+  listOpportunities(): Promise<Opportunity[]>;
+}
+
+/**
+ * Common interface for the Solana protocols the StableSave Vault allocates to.
  *
  * Yield and liquidity calls take a market id because protocols expose several
  * markets per asset. All rates are decimals (0.0515 === 5.15%).
  */
-export interface YieldProtocolAdapter {
+export interface YieldProtocolAdapter extends OpportunityProvider {
   readonly id: ProtocolId;
   readonly name: string;
   readonly network: NetworkId;
@@ -71,9 +83,6 @@ export interface YieldProtocolAdapter {
   readonly officialUrl: string;
   readonly capabilities: AdapterCapabilities;
   readonly source: MarketDataSource;
-
-  /** Every market as a normalized opportunity (unrated). */
-  listOpportunities(): Promise<Opportunity[]>;
 
   /** Current total APY for a market. */
   getCurrentYield(marketId: string): Promise<number>;

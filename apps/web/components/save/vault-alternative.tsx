@@ -24,7 +24,9 @@ export function VaultAlternative({ blend, amount, profile }: { blend: BlendedStr
     >
       <ProtocolMark protocolId="stablesave" name="S" size="sm" />
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-fg">Or split it with StableSave Vault</p>
+        <p className="text-sm font-medium text-fg">
+          Or split it with StableSave Vault <span className="font-normal text-fg-subtle">· Solana</span>
+        </p>
         <p className="mt-0.5 truncate text-xs text-fg-muted">{allocationText}</p>
         <AllocationBar segments={segments} height={3} className="mt-2 max-w-[220px]" />
       </div>

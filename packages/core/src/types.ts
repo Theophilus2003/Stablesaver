@@ -12,8 +12,10 @@
 export const STABLE_ASSETS = ["USDC", "USDT"] as const;
 export type StableAsset = (typeof STABLE_ASSETS)[number];
 
-export type NetworkId = "solana" | "ethereum" | "base";
+/** Lowercase chain slug, e.g. "solana", "ethereum", "arbitrum", "bsc". */
+export type NetworkId = string;
 
+/** Protocols the StableSave Vault (Solana) can allocate to. */
 export type ProtocolId = "kamino" | "marginfi" | "drift" | "save";
 
 /** Where market data came from. `demo` data is illustrative only. */
@@ -21,7 +23,7 @@ export type DataMode = "demo" | "live";
 
 export type SolanaCluster = "localnet" | "devnet" | "mainnet-beta";
 
-export type StrategyType = "lending" | "curated-vault" | "insurance-fund";
+export type StrategyType = "lending" | "curated-vault" | "insurance-fund" | "yield";
 
 export interface YieldBreakdown {
   /** Organic yield paid by borrowers / strategy, net of protocol performance fees. */
@@ -84,6 +86,11 @@ export interface RiskData {
   incidentsReviewed?: boolean;
   /** Daily total APY observations for the last ~30 days (decimals). May be empty. */
   apyHistory30d: number[];
+  /**
+   * Standard deviation of the APY over the pool's history (decimal), when a
+   * data provider reports one instead of the series itself.
+   */
+  apyVolatility?: number | null;
   oracleSetup: OracleSetup;
   oracles: string[];
   /** Share of supplied funds currently borrowed (0..1). High = harder to withdraw. */
@@ -107,10 +114,13 @@ export interface DataProvenance {
 }
 
 export interface Opportunity {
-  /** Stable id, e.g. "kamino-main-usdc". */
+  /** Stable id, e.g. "kamino-main-usdc" or "aave-v3-ethereum-main-usdt". */
   id: string;
-  protocolId: ProtocolId;
+  /** A vault protocol id ("kamino", …) for known Solana protocols, otherwise the DefiLlama project slug. */
+  protocolId: string;
   protocolName: string;
+  /** Logo URL when the data source provides one. */
+  protocolLogo: string | null;
   /** e.g. "USDC Lending" */
   productName: string;
   /** e.g. "Main Market" */
@@ -119,6 +129,8 @@ export interface Opportunity {
   /** Plain-English description of where the money goes. */
   description: string;
   network: NetworkId;
+  /** Display name, e.g. "Ethereum", "BSC". */
+  networkName: string;
   asset: StableAsset;
   yield: YieldBreakdown;
   tvlUsd: number;
@@ -128,10 +140,10 @@ export interface Opportunity {
   depositors: number | null;
   fees: FeeSchedule;
   risk: RiskData;
-  /** Official app URL. StableSave never proxies deposits to external protocols. */
-  officialUrl: string;
+  /** Official app or site, when known. StableSave never proxies deposits to external protocols. */
+  officialUrl: string | null;
   /** Hostname users should verify before connecting a wallet. */
-  officialDomain: string;
+  officialDomain: string | null;
   updatedAt: string;
   provenance: DataProvenance;
 }
@@ -188,7 +200,8 @@ export interface RatedOpportunity extends Opportunity {
 }
 
 export interface AdapterStatus {
-  protocolId: ProtocolId;
+  /** Provider id: a protocol id in demo mode, "defillama" for live data. */
+  id: string;
   name: string;
   mode: DataMode;
   status: "ok" | "unavailable";
@@ -199,13 +212,18 @@ export interface AdapterStatus {
 export interface BestRate {
   opportunityId: string;
   protocolName: string;
+  networkName: string;
   apy: number;
+  /** The grade letter this is the best rate for: the highest grade available. */
+  grade: Grade;
 }
 
 export interface MarketSummary {
   optionCount: number;
   protocolCount: number;
-  bestGradeA: Partial<Record<StableAsset, BestRate>>;
+  networkCount: number;
+  /** Per asset: the highest rate among options with the highest grade available (A if any). */
+  bestTopGrade: Partial<Record<StableAsset, BestRate>>;
 }
 
 export interface MarketSnapshot {

@@ -67,7 +67,7 @@ const STEPS = [
   },
   {
     title: "We compare options for you",
-    body: "Compare current rates, liquidity and risk across supported Solana protocols.",
+    body: "Compare current rates, liquidity, fees and risk across protocols on every major network.",
   },
   {
     title: "Choose where to deposit",

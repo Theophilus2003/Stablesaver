@@ -1,6 +1,7 @@
 export type {
   AdapterCapabilities,
   MarketDataSource,
+  OpportunityProvider,
   ProtocolMarket,
   TransactionParams,
   YieldProtocolAdapter,
@@ -11,13 +12,15 @@ export { MarginfiAdapter } from "./adapters/marginfi";
 export { DriftAdapter } from "./adapters/drift";
 export { SaveAdapter } from "./adapters/save";
 export { DemoMarketSource, DEMO_PROVIDER } from "./demo/source";
+export { DemoMultichainProvider, demoMultichainOpportunities } from "./demo/multichain";
 export {
-  DefiLlamaMarketSource,
+  DefiLlamaMarketsProvider,
   DEFILLAMA_PROJECTS,
   DEFILLAMA_PROVIDER,
   SOLANA_STABLE_MINTS,
-  selectPools,
-  type DefiLlamaSourceOptions,
+  STABLE_SYMBOLS,
+  selectStablePools,
+  type DefiLlamaProviderOptions,
 } from "./live/defillama-source";
 export {
   DefiLlamaClient,
@@ -30,9 +33,9 @@ export {
 } from "./live/defillama-client";
 export { DirectDepositUnavailableError, LiveDataUnavailableError, UnknownMarketError } from "./errors";
 export {
-  createDefaultAdapters,
+  createDefaultProviders,
+  createDemoAdapters,
   createOpportunityService,
-  createSource,
   SUPPORTED_PROTOCOLS,
   type OpportunityService,
   type OpportunityServiceOptions,

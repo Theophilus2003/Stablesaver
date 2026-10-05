@@ -32,6 +32,10 @@ export class BaseYieldAdapter implements YieldProtocolAdapter {
   readonly capabilities: AdapterCapabilities;
   readonly source: MarketDataSource;
 
+  get mode() {
+    return this.source.mode;
+  }
+
   constructor(config: AdapterConfig) {
     const info = PROTOCOLS[config.id];
     this.id = config.id;
@@ -52,11 +56,13 @@ export class BaseYieldAdapter implements YieldProtocolAdapter {
         id: `${this.id}-${m.marketId}`,
         protocolId: this.id,
         protocolName: this.name,
+        protocolLogo: null,
         productName: m.productName,
         marketName: m.marketName,
         strategyType: m.strategyType,
         description: m.description,
         network: this.network,
+        networkName: "Solana",
         asset: m.asset,
         yield: m.yield,
         tvlUsd: m.tvlUsd,

@@ -9,11 +9,13 @@ function makeOpportunity(overrides: Partial<Opportunity["risk"]> = {}, top: Part
     id: "test-usdc",
     protocolId: "kamino",
     protocolName: "Test",
+    protocolLogo: null,
     productName: "USDC Lending",
     marketName: "Main",
     strategyType: "lending",
     description: "",
     network: "solana",
+    networkName: "Solana",
     asset: "USDC",
     yield: { baseApy: 0.05, rewardApy: 0.002, totalApy: 0.052 },
     tvlUsd: 1_500_000_000,
@@ -154,5 +156,14 @@ describe("calculateSafetyGrade", () => {
   it("missing utilization doesn't crash and is mentioned", () => {
     const result = calculateSafetyGrade(makeOpportunity({ utilization: null }), { now: NOW });
     expect(result.factors.find((f) => f.id === "liquidity")!.detail).toMatch(/isn't reported/);
+  });
+
+  it("judges yield stability from a reported deviation when there's no series", () => {
+    const steady = calculateSafetyGrade(makeOpportunity({ apyHistory30d: [], apyVolatility: 0.002 }), { now: NOW });
+    const swingy = calculateSafetyGrade(makeOpportunity({ apyHistory30d: [], apyVolatility: 0.05 }), { now: NOW });
+    const stable = steady.factors.find((f) => f.id === "yieldVolatility")!;
+    expect(stable.known).toBe(true);
+    expect(stable.detail).toMatch(/over its history/);
+    expect(swingy.factors.find((f) => f.id === "yieldVolatility")!.score).toBeLessThan(stable.score);
   });
 });

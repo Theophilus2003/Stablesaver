@@ -30,7 +30,7 @@ It is a relative, opinionated assessment built from the inputs available. It is 
 | Smart contract security | 14 | audits, bug bounty, upgrade authority, open source |
 | Strategy complexity | 10 | simple / moderate / complex, leverage |
 | Incident history | 12 | severity, losses, reimbursement, age (decays over 4 years) |
-| Yield stability | 8 | 30-day APY standard deviation, share of rewards in the rate |
+| Yield stability | 8 | APY standard deviation (30-day series, or the provider's historical figure), share of rewards in the rate |
 | Oracle dependencies | 9 | none / redundant / single feed, leverage |
 | Concentration | 9 | top-10 depositor share, collateral concentration |
 

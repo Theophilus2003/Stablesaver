@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     template: "%s · StableSave",
   },
   description:
-    "Compare ways to earn on idle USDC and USDT on Solana. Estimated yearly earnings after fees, an A–D safety grade, and where your money goes.",
+    "Compare ways to earn on idle USDC and USDT, across networks. Estimated yearly earnings after fees, an A–D safety grade, and where your money goes.",
   icons: { icon: "/icon.svg" },
 };
 

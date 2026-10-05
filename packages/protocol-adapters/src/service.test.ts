@@ -1,7 +1,7 @@
 import { blendStrategy, EXAMPLE_VAULT_STRATEGIES, recommend } from "@stablesave/core";
 import { describe, expect, it } from "vitest";
 import {
-  createDefaultAdapters,
+  createDefaultProviders,
   createOpportunityService,
   DirectDepositUnavailableError,
   KaminoAdapter,
@@ -9,7 +9,7 @@ import {
 } from "./index";
 
 describe("opportunity service (demo)", () => {
-  const service = createOpportunityService({ adapters: createDefaultAdapters("demo") });
+  const service = createOpportunityService({ providers: createDefaultProviders("demo") });
 
   it("labels every opportunity as demo data", async () => {
     const snapshot = await service.getSnapshot();
@@ -17,10 +17,12 @@ describe("opportunity service (demo)", () => {
     expect(snapshot.opportunities.length).toBeGreaterThanOrEqual(12);
     for (const o of snapshot.opportunities) {
       expect(o.provenance.mode).toBe("demo");
-      expect(o.network).toBe("solana");
       expect(["A", "B", "C", "D"]).toContain(o.safety.grade);
     }
-    expect(snapshot.summary.protocolCount).toBe(4);
+    expect(snapshot.summary.networkCount).toBeGreaterThanOrEqual(5);
+    expect(new Set(snapshot.opportunities.filter((o) => o.network === "solana").map((o) => o.protocolId))).toEqual(
+      new Set(["kamino", "marginfi", "drift", "save"]),
+    );
   });
 
   it("produces a spread of grades", async () => {

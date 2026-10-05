@@ -47,6 +47,9 @@ export interface DefiLlamaProtocol {
   audits: string | null;
   oracles: string[];
   url: string | null;
+  logo: string | null;
+  /** DefiLlama's category, e.g. "Lending", "Yield Aggregator". */
+  category: string | null;
 }
 
 export interface DefiLlamaChartPoint {
@@ -166,7 +169,9 @@ export class DefiLlamaClient {
               auditLinks: strings(row.audit_links),
               audits: typeof row.audits === "string" ? row.audits : null,
               oracles: strings(row.oracles),
-              url: typeof row.url === "string" ? row.url : null,
+              url: httpsUrl(row.url),
+              logo: httpsUrl(row.logo),
+              category: typeof row.category === "string" ? row.category : null,
             });
           }
         }
@@ -259,6 +264,16 @@ function parsePool(row: unknown): DefiLlamaPool | null {
   };
 }
 
+/** Only https links are passed on to the UI. */
+function httpsUrl(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  try {
+    return new URL(value).protocol === "https:" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -274,9 +289,9 @@ function strings(value: unknown): string[] {
 let shared: DefiLlamaClient | undefined;
 
 /**
- * One client per process so all four protocol sources share a single /pools
- * download. `STABLESAVE_DEFILLAMA_YIELDS_URL` / `STABLESAVE_DEFILLAMA_API_URL`
- * point it at a proxy or mirror.
+ * One client per process so every caller shares a single /pools download.
+ * `STABLESAVE_DEFILLAMA_YIELDS_URL` / `STABLESAVE_DEFILLAMA_API_URL` point it
+ * at a proxy or mirror.
  */
 export function getSharedDefiLlamaClient(): DefiLlamaClient {
   const env: Record<string, string | undefined> = typeof process !== "undefined" ? process.env : {};

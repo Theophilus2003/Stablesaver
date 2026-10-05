@@ -1,6 +1,6 @@
 "use client";
 
-import { INELIGIBLE_COPY, NETWORKS, formatCompactUsd, formatPercent, type RankedOption } from "@stablesave/core";
+import { INELIGIBLE_COPY, formatCompactUsd, formatPercent, getNetwork, type RankedOption } from "@stablesave/core";
 import { GradeBadge, ProtocolMark, cn } from "@stablesave/ui";
 import { Check, Plus } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -17,7 +17,8 @@ export interface OptionRowProps {
 export function OptionRow({ option, pinned, recommended, onOpen, onTogglePin }: OptionRowProps) {
   const o = option.opportunity;
   const net = option.estimate.netEarnings;
-  const meta = `${NETWORKS[o.network].name} · ${formatCompactUsd(o.liquidityUsd)} liquidity`;
+  const network = getNetwork(o.network, o.networkName);
+  const meta = `${network.name} · ${formatCompactUsd(o.liquidityUsd)} liquidity`;
 
   return (
     <div
@@ -30,7 +31,7 @@ export function OptionRow({ option, pinned, recommended, onOpen, onTogglePin }: 
           onOpen(o.id);
         }
       }}
-      aria-label={`${o.protocolName} ${o.productName}, ${formatPercent(o.yield.totalApy)}, grade ${o.safety.display}`}
+      aria-label={`${o.protocolName} ${o.productName} on ${network.name}, ${formatPercent(o.yield.totalApy)}, grade ${o.safety.display}`}
       className={cn(
         "group relative cursor-pointer outline-none transition-colors hover:bg-surface-2 focus-visible:bg-surface-2",
         "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-3 px-4 py-4",
@@ -40,7 +41,13 @@ export function OptionRow({ option, pinned, recommended, onOpen, onTogglePin }: 
     >
       {/* Name */}
       <div className="flex min-w-0 items-center gap-3">
-        <ProtocolMark protocolId={o.protocolId} name={o.protocolName} className={cn(!option.eligible && "opacity-60")} />
+        <ProtocolMark
+          protocolId={o.protocolId}
+          name={o.protocolName}
+          logoUrl={o.protocolLogo}
+          network={network}
+          className={cn(!option.eligible && "opacity-60")}
+        />
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className={cn("truncate text-[15px] font-medium", option.eligible ? "text-fg" : "text-fg-muted")}>
@@ -69,9 +76,7 @@ export function OptionRow({ option, pinned, recommended, onOpen, onTogglePin }: 
 
       {/* Desktop columns */}
       <div className="hidden min-w-0 items-center gap-1.5 text-[13px] text-fg-muted md:flex">
-        {o.network === "solana" ? (
-          <span className="size-1.5 shrink-0 rounded-full bg-gradient-to-br from-sol-purple to-sol-green" aria-hidden />
-        ) : null}
+        <span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: network.color }} aria-hidden />
         <span className="truncate">{meta}</span>
       </div>
       <div className="hidden md:flex">

@@ -3,7 +3,8 @@ import type { ProtocolId } from "@stablesave/core";
 export class LiveDataUnavailableError extends Error {
   override readonly name = "LiveDataUnavailableError";
   constructor(
-    readonly protocolId: ProtocolId,
+    /** The protocol or provider whose data couldn't be loaded. */
+    readonly sourceId: string,
     message: string,
   ) {
     super(message);

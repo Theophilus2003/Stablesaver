@@ -19,7 +19,7 @@ const FACTOR_COPY: Record<string, string> = {
   smartContract: "Public audits, bug bounties, open source code, and who can upgrade the contracts.",
   complexity: "Plain lending is simpler than automated vaults; insurance-style positions can absorb losses.",
   incidents: "Past security incidents, how serious they were, whether users were made whole. Older ones count less.",
-  yieldVolatility: "How much the rate moved over 30 days, and how much of it comes from token rewards.",
+  yieldVolatility: "How much the rate moves over time, and how much of it comes from token rewards.",
   oracle: "Whether it depends on price feeds, and whether it has backups if one feed is wrong.",
   concentration: "Whether a few large depositors, or a single collateral asset, dominate the pool.",
 };

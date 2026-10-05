@@ -52,7 +52,9 @@ export function SaveExperience({ snapshot, initial }: { snapshot: MarketSnapshot
   const pinned: RankedOption | null = pinnedId
     ? (recommendation.ranked.find((r) => r.opportunity.id === pinnedId) ?? null)
     : null;
-  const featured = pinned ?? recommendation.best;
+  // Nothing meets the setting: show the closest option, clearly marked as below it.
+  const featured = pinned ?? recommendation.best ?? recommendation.closest;
+  const belowSetting = !pinned && !recommendation.best && Boolean(recommendation.closest);
 
   const blend = React.useMemo(
     () => (asset === "USDC" ? blendStrategy(EXAMPLE_VAULT_STRATEGIES[profile], snapshot.opportunities, deferredAmount) : null),
@@ -123,6 +125,7 @@ export function SaveExperience({ snapshot, initial }: { snapshot: MarketSnapshot
             amount={deferredAmount}
             profile={profile}
             pinned={Boolean(pinned)}
+            belowSetting={belowSetting}
             onOpen={setOpenId}
             onUnpin={() => setPinnedId(null)}
             unavailable={unavailable}

@@ -2,12 +2,13 @@
 
 import {
   ASSET_INFO,
-  NETWORKS,
   estimateEarnings,
   formatBpsAsPercent,
   formatCompactUsd,
   formatPercent,
   formatRelativeTime,
+  getNetwork,
+  isVaultProtocol,
   type FactorAssessment,
   type RatedOpportunity,
 } from "@stablesave/core";
@@ -28,6 +29,7 @@ export interface OptionDetailProps {
 export function OptionDetail({ opportunity: o, amount, standalone = false }: OptionDetailProps) {
   const estimate = estimateEarnings(amount, o.yield.totalApy, o.fees);
   const demo = o.provenance.mode === "demo";
+  const network = getNetwork(o.network, o.networkName);
   const [now, setNow] = React.useState<Date | null>(null);
   React.useEffect(() => setNow(new Date()), []);
 
@@ -35,7 +37,7 @@ export function OptionDetail({ opportunity: o, amount, standalone = false }: Opt
     <div className={cn("flex flex-col", standalone ? "gap-8" : "gap-7")}>
       {/* Heading */}
       <div className="flex items-start gap-3.5">
-        <ProtocolMark protocolId={o.protocolId} name={o.protocolName} size="lg" />
+        <ProtocolMark protocolId={o.protocolId} name={o.protocolName} logoUrl={o.protocolLogo} network={network} size="lg" />
         <div className="min-w-0">
           <p className="text-[13px] text-fg-muted">{o.protocolName}</p>
           <h2 className={cn("font-semibold tracking-[-0.02em] text-fg", standalone ? "text-2xl" : "text-xl")}>
@@ -43,8 +45,8 @@ export function OptionDetail({ opportunity: o, amount, standalone = false }: Opt
           </h2>
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <Badge size="xs">
-              <span className="size-1.5 rounded-full bg-gradient-to-br from-sol-purple to-sol-green" aria-hidden />
-              {NETWORKS[o.network].name}
+              <span className="size-1.5 rounded-full" style={{ backgroundColor: network.color }} aria-hidden />
+              {network.name}
             </Badge>
             <Badge size="xs">{o.marketName}</Badge>
             {demo ? (
@@ -100,12 +102,16 @@ export function OptionDetail({ opportunity: o, amount, standalone = false }: Opt
           <p
             className={cn(
               "mt-1 text-[28px] font-semibold leading-none tracking-[-0.03em] tabular-nums",
-              amount > 0 ? "text-positive" : "text-fg-subtle",
+              amount <= 0 ? "text-fg-subtle" : estimate.netEarnings >= 0 ? "text-positive" : "text-danger",
             )}
           >
             {formatEarnings(estimate.netEarnings)}
           </p>
-          <p className="mt-2 text-xs text-fg-subtle">on {formatUsd(amount, { decimals: 0 })}, after fees</p>
+          <p className="mt-2 text-xs text-fg-subtle">
+            {amount > 0 && estimate.netEarnings < 0
+              ? `Fees cost more than ${formatUsd(amount, { decimals: 0 })} would earn here`
+              : `on ${formatUsd(amount, { decimals: 0 })}, after fees`}
+          </p>
         </div>
       </div>
 
@@ -122,10 +128,12 @@ export function OptionDetail({ opportunity: o, amount, standalone = false }: Opt
         <Fact label="Asset">
           {o.asset} <span className="text-fg-subtle">· {ASSET_INFO[o.asset].issuer}</span>
         </Fact>
-        <Fact label="Network">{NETWORKS[o.network].name}</Fact>
+        <Fact label="Network">{network.name}</Fact>
         <Fact label="Fees">
           {feeSummary(o)}
-          <span className="block text-xs text-fg-subtle">~{formatNetworkFee(o.fees.estimatedNetworkFeeUsd)} network</span>
+          <span className="block text-xs text-fg-subtle">
+            ~{formatNetworkFee(o.fees.estimatedNetworkFeeUsd)} {network.name} network fees, in and out
+          </span>
         </Fact>
         {o.depositors !== null ? <Fact label="Depositors">{o.depositors.toLocaleString("en-US")}</Fact> : null}
         <Fact label="Last updated">
@@ -140,13 +148,22 @@ export function OptionDetail({ opportunity: o, amount, standalone = false }: Opt
 
       {/* CTA */}
       <div className="flex flex-col gap-3">
-        <Button asChild size="lg" className="w-full">
-          <a href={o.officialUrl} target="_blank" rel="noopener noreferrer">
-            Deposit on official app
-            <ArrowUpRight />
-          </a>
-        </Button>
-        {o.asset === "USDC" ? (
+        {o.officialUrl ? (
+          <Button asChild size="lg" className="w-full">
+            <a href={o.officialUrl} target="_blank" rel="noopener noreferrer">
+              Deposit on official app
+              <ArrowUpRight />
+            </a>
+          </Button>
+        ) : o.provenance.sourceUrl ? (
+          <Button asChild size="lg" variant="secondary" className="w-full">
+            <a href={o.provenance.sourceUrl} target="_blank" rel="noopener noreferrer">
+              Find the official app on {o.provenance.provider}
+              <ArrowUpRight />
+            </a>
+          </Button>
+        ) : null}
+        {o.asset === "USDC" && o.network === "solana" ? (
           <Button asChild size="lg" variant="secondary" className="w-full">
             <Link href={`/vault/deposit?amount=${Math.round(amount)}`}>
               Use StableSave Vault instead
@@ -155,7 +172,15 @@ export function OptionDetail({ opportunity: o, amount, standalone = false }: Opt
           </Button>
         ) : null}
         <p className="text-xs leading-relaxed text-fg-subtle">
-          Opens <span className="text-fg-muted">{o.officialDomain}</span>. Check the address before you connect a wallet.
+          {o.officialUrl ? (
+            <>
+              Opens <span className="text-fg-muted">{o.officialDomain}</span>
+              {isVaultProtocol(o.protocolId) ? "" : `, the site ${o.provenance.provider} lists for ${o.protocolName}`}. Check
+              the address before you connect a wallet.{" "}
+            </>
+          ) : (
+            <>We don&apos;t have a verified link for {o.protocolName} yet. </>
+          )}
           StableSave doesn&apos;t control, operate or guarantee {o.protocolName}, and never holds funds you deposit there.
         </p>
       </div>
@@ -268,7 +293,13 @@ function FactorRow({ factor: f }: { factor: FactorAssessment }) {
 
 function WhereMoneyGoes({ opportunity: o }: { opportunity: RatedOpportunity }) {
   const destination =
-    o.strategyType === "insurance-fund" ? "Insurance fund" : o.strategyType === "curated-vault" ? "Lending markets" : "Borrowers";
+    o.strategyType === "insurance-fund"
+      ? "Insurance fund"
+      : o.strategyType === "curated-vault"
+        ? "Its strategies"
+        : o.strategyType === "lending"
+          ? "Borrowers"
+          : "Its strategy";
   return (
     <section>
       <SectionTitle>Where your money goes</SectionTitle>
@@ -340,7 +371,19 @@ function WhatCouldGoWrong({ opportunity: o }: { opportunity: RatedOpportunity })
   if (o.strategyType === "curated-vault") {
     risks.splice(1, 0, {
       title: "Curator decisions",
-      body: "A curator chooses where the vault lends. A poor choice can expose you to markets you didn't pick.",
+      body: "A curator chooses where the vault puts your money. A poor choice can expose you to markets you didn't pick.",
+    });
+  }
+  if (o.strategyType === "yield") {
+    risks.splice(1, 0, {
+      title: "Strategy risk",
+      body: `We haven't reviewed how ${o.protocolName} earns this yield. Read its docs: some strategies use leverage, trading or other tokens.`,
+    });
+  }
+  if (o.network !== "solana") {
+    risks.push({
+      title: "Network risk",
+      body: `This runs on ${getNetwork(o.network, o.networkName).name}. If your ${o.asset} is on another network, getting it there means a bridge or an exchange, which adds its own risk and fees.`,
     });
   }
 
