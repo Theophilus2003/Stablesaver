@@ -15,7 +15,8 @@ The deployer pays for the deploy and becomes the vault's admin. Use a fresh acco
 ## 2. Fund it with devnet SOL
 
 Copy the deployer's address and get devnet SOL from <https://faucet.solana.com>. The first deploy needs about
-**6 SOL** (the run tells you the exact amount if it's short); later runs need very little.
+**5 SOL** in the account while it runs; about 2.4 SOL stays locked in the program account and the rest comes back.
+If it's short, the run stops before deploying and says how much it needs. Later runs need very little.
 
 ## 3. Add the key to GitHub
 
@@ -37,8 +38,9 @@ Actions → **Vault program** → **Run workflow**:
 | Amount | How many test tokens to send (default 10,000). |
 | Mint | Leave empty to use a new StableSave test token. Or paste an existing 6-decimal token, e.g. Circle's devnet USDC `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU` (get it from <https://faucet.circle.com>; the workflow can't mint it). |
 
-It builds the program, runs its tests, rehearses everything on a local validator, then deploys to devnet. It takes
-about 10–15 minutes the first time. The run's **Summary** lists the values for the next step.
+It builds the program, runs its tests, rehearses everything on a local validator (deploy, test token, vaults, a
+deposit and a withdrawal), then deploys to devnet. It takes about 10 minutes. The run's **Summary** lists the values
+for the next step.
 
 Run it again any time: it upgrades the same program (the program id is derived from your deployer key), keeps
 existing vaults, and sends more test tokens if you fill in a wallet.
