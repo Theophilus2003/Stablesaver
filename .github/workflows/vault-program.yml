@@ -1,0 +1,136 @@
+name: Vault program
+
+# On every change to the program or client: build the program, run its tests,
+# and rehearse a full deploy on a local validator (deposit + withdraw included).
+#
+# Run it by hand ("Run workflow") to deploy to devnet with your own key and get
+# test tokens. See docs/devnet-testing.md.
+on:
+  push:
+    paths:
+      - "programs/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "packages/client/**"
+      - "scripts/deploy-vault.sh"
+      - ".github/workflows/vault-program.yml"
+  workflow_dispatch:
+    inputs:
+      wallet:
+        description: "Your wallet address (receives test tokens). Leave empty to skip."
+        required: false
+        default: ""
+      amount:
+        description: "Test tokens to send"
+        required: false
+        default: "10000"
+      mint:
+        description: "Use an existing 6-decimal token instead of a new test token (optional)"
+        required: false
+        default: ""
+      deploy:
+        description: "Deploy to devnet (needs the DEVNET_DEPLOYER_KEY secret)"
+        type: boolean
+        default: true
+
+concurrency:
+  group: vault-program-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build, test and rehearse
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-solana
+
+      - name: Build program
+        run: cargo build-sbf --manifest-path programs/stablesave-vault/Cargo.toml --sbf-out-dir target/deploy
+
+      - name: Program tests (unit + LiteSVM integration)
+        run: cargo test -p stablesave-vault -- --nocapture
+
+      - name: Start local validator
+        run: |
+          solana-test-validator --reset --quiet --ledger "$RUNNER_TEMP/ledger" &
+          for i in $(seq 1 60); do solana cluster-version --url http://127.0.0.1:8899 >/dev/null 2>&1 && exit 0; sleep 1; done
+          echo "::error::Local validator didn't start"; exit 1
+
+      - name: Rehearse deploy, test token and vaults on the local validator
+        run: |
+          solana-keygen new --no-bip39-passphrase --silent --outfile "$RUNNER_TEMP/rehearsal.json"
+          solana airdrop 100 "$(solana-keygen pubkey "$RUNNER_TEMP/rehearsal.json")" --url http://127.0.0.1:8899
+          export STABLESAVE_DEPLOYER_KEY="$(cat "$RUNNER_TEMP/rehearsal.json")"
+          scripts/deploy-vault.sh http://127.0.0.1:8899 | tee "$RUNNER_TEMP/rehearsal.log"
+          # Re-running is a no-op for existing accounts.
+          scripts/deploy-vault.sh http://127.0.0.1:8899 >/dev/null
+          PROGRAM_ID=$(sed -n 's/^program_id=//p' "$RUNNER_TEMP/rehearsal.log" | tail -1)
+          MINT=$(sed -n 's/^mint=//p' "$RUNNER_TEMP/rehearsal.log" | tail -1)
+          pnpm -s --filter @stablesave/client devnet smoke --rpc http://127.0.0.1:8899 --program "$PROGRAM_ID" --mint "$MINT"
+
+  deploy:
+    name: Deploy to devnet
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the deployer key
+        env:
+          STABLESAVE_DEPLOYER_KEY: ${{ secrets.DEVNET_DEPLOYER_KEY }}
+        run: |
+          if [ -z "$STABLESAVE_DEPLOYER_KEY" ]; then
+            echo "::error::Add a repository secret named DEVNET_DEPLOYER_KEY (Settings → Secrets and variables → Actions). See docs/devnet-testing.md."
+            exit 1
+          fi
+
+      - uses: ./.github/actions/setup-solana
+
+      - name: Deploy, create test token and open vaults
+        id: deploy
+        env:
+          STABLESAVE_DEPLOYER_KEY: ${{ secrets.DEVNET_DEPLOYER_KEY }}
+          RPC_URL: ${{ vars.DEVNET_RPC_URL || 'https://api.devnet.solana.com' }}
+          WALLET: ${{ inputs.wallet }}
+          AMOUNT: ${{ inputs.amount }}
+          MINT: ${{ inputs.mint }}
+        run: |
+          args=()
+          if [ -n "$WALLET" ]; then args+=(--to "$WALLET" --amount "${AMOUNT:-10000}"); fi
+          if [ -n "$MINT" ]; then args+=(--mint "$MINT"); fi
+          scripts/deploy-vault.sh "$RPC_URL" "${args[@]}"
+
+      - name: Summary
+        env:
+          PROGRAM_ID: ${{ steps.deploy.outputs.program_id }}
+          MINT: ${{ steps.deploy.outputs.mint }}
+          WALLET: ${{ inputs.wallet }}
+        run: |
+          {
+            echo "## StableSave Vault is on devnet"
+            echo
+            echo "Set these in Vercel (web project → Settings → Environment Variables), then redeploy:"
+            echo
+            echo '```'
+            echo "NEXT_PUBLIC_SOLANA_CLUSTER=devnet"
+            echo "NEXT_PUBLIC_STABLESAVE_VAULT_PROGRAM_ID=$PROGRAM_ID"
+            echo "NEXT_PUBLIC_STABLESAVE_VAULT_MINT=$MINT"
+            echo '```'
+            echo
+            echo "- Program: https://explorer.solana.com/address/$PROGRAM_ID?cluster=devnet"
+            echo "- Test token: https://explorer.solana.com/address/$MINT?cluster=devnet"
+            if [ -n "$WALLET" ]; then echo "- Test tokens sent to \`$WALLET\`"; fi
+            echo
+            echo "Switch your wallet to devnet (Phantom: Settings → Developer settings → Testnet mode) before depositing."
+          } >> "$GITHUB_STEP_SUMMARY"

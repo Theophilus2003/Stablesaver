@@ -13,23 +13,8 @@
  */
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import {
-  address,
-  appendTransactionMessageInstruction,
-  createKeyPairSignerFromBytes,
-  createSolanaRpc,
-  createSolanaRpcSubscriptions,
-  createTransactionMessage,
-  getAddressEncoder,
-  getProgramDerivedAddress,
-  getSignatureFromTransaction,
-  pipe,
-  sendAndConfirmTransactionFactory,
-  setTransactionMessageFeePayerSigner,
-  setTransactionMessageLifetimeUsingBlockhash,
-  signTransactionMessageWithSigners,
-  type Address,
-} from "@solana/kit";
+import { pathToFileURL } from "node:url";
+import { address, getAddressEncoder, getProgramDerivedAddress, type Address, type KeyPairSigner } from "@solana/kit";
 import {
   STABLESAVE_VAULT_PROGRAM_ADDRESS,
   Protocol,
@@ -38,6 +23,7 @@ import {
   getInitializeVaultInstructionAsync,
   type RiskProfileId,
 } from "../src/index";
+import { connect, loadKeypairSigner, sendInstructions, type Connection } from "./lib";
 
 const BPF_LOADER_UPGRADEABLE = address("BPFLoaderUpgradeab1e11111111111111111111111");
 const USDC = 1_000_000n;
@@ -76,31 +62,36 @@ function arg(name: string, fallback?: string): string {
   return value;
 }
 
-function wsUrl(rpc: string): string {
-  return rpc.replace(/^http/, "ws");
+export interface InitializeVaultsOptions {
+  connection: Connection;
+  /** Must be the program's upgrade authority (the program enforces it). */
+  authority: KeyPairSigner;
+  mint: Address;
+  programAddress: Address;
+  guardian?: Address;
+  log?: (line: string) => void;
 }
 
-async function main() {
-  const rpcUrl = arg("rpc", "https://api.devnet.solana.com");
-  const mint = address(arg("mint"));
-  const programAddress = address(arg("program", STABLESAVE_VAULT_PROGRAM_ADDRESS));
-  const keypairPath = arg("keypair", `${homedir()}/.config/solana/id.json`).replace(/^~/, homedir());
-  const authority = await createKeyPairSignerFromBytes(new Uint8Array(JSON.parse(readFileSync(keypairPath, "utf8"))));
-  const guardian = address(arg("guardian", authority.address));
-
-  const rpc = createSolanaRpc(rpcUrl);
-  const rpcSubscriptions = createSolanaRpcSubscriptions(wsUrl(rpcUrl));
-  const sendAndConfirm = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
-
+/** Create any of the three vaults (safe / balanced / bigger) that don't exist yet. Returns their addresses. */
+export async function initializeVaults({
+  connection,
+  authority,
+  mint,
+  programAddress,
+  guardian = authority.address,
+  log = console.log,
+}: InitializeVaultsOptions): Promise<Address[]> {
   const [programData] = await getProgramDerivedAddress({
     programAddress: BPF_LOADER_UPGRADEABLE,
     seeds: [getAddressEncoder().encode(programAddress)],
   });
 
+  const vaults: Address[] = [];
   for (const riskProfile of [0, 1, 2] as RiskProfileId[]) {
     const [vault] = await findVaultPda({ mint, riskProfile }, { programAddress });
-    if ((await fetchMaybeVault(rpc, vault)).exists) {
-      console.log(`profile ${riskProfile}: vault ${vault} already exists, skipping`);
+    vaults.push(vault);
+    if ((await fetchMaybeVault(connection.rpc, vault)).exists) {
+      log(`profile ${riskProfile}: vault ${vault} already exists, skipping`);
       continue;
     }
     const ix = await getInitializeVaultInstructionAsync(
@@ -117,20 +108,28 @@ async function main() {
       },
       { programAddress },
     );
-    const { value: blockhash } = await rpc.getLatestBlockhash().send();
-    const message = pipe(
-      createTransactionMessage({ version: 0 }),
-      (m) => setTransactionMessageFeePayerSigner(authority, m),
-      (m) => setTransactionMessageLifetimeUsingBlockhash(blockhash, m),
-      (m) => appendTransactionMessageInstruction(ix, m),
-    );
-    const signed = await signTransactionMessageWithSigners(message);
-    await sendAndConfirm(signed as Parameters<typeof sendAndConfirm>[0], { commitment: "confirmed" });
-    console.log(`profile ${riskProfile}: initialized ${vault} (${getSignatureFromTransaction(signed)})`);
+    const signature = await sendInstructions(connection, authority, [ix]);
+    log(`profile ${riskProfile}: initialized ${vault} (${signature})`);
   }
+  return vaults;
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+async function main() {
+  const connection = connect(arg("rpc", "https://api.devnet.solana.com"));
+  const keypairPath = arg("keypair", `${homedir()}/.config/solana/id.json`).replace(/^~/, homedir());
+  const authority = await loadKeypairSigner(readFileSync(keypairPath, "utf8"));
+  await initializeVaults({
+    connection,
+    authority,
+    mint: address(arg("mint")),
+    programAddress: address(arg("program", STABLESAVE_VAULT_PROGRAM_ADDRESS)),
+    guardian: address(arg("guardian", authority.address)),
+  });
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
