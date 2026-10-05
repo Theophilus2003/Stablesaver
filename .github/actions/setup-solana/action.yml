@@ -18,6 +18,11 @@ runs:
       shell: bash
       run: pnpm install --frozen-lockfile
 
+    - name: Update Rust
+      shell: bash
+      # Agave 4.x crates (LiteSVM's runtime) need a recent stable rustc.
+      run: rustup update stable --no-self-update && rustup default stable && rustc --version
+
     - uses: Swatinem/rust-cache@v2
 
     - name: Cache Solana platform tools
