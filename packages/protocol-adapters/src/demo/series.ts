@@ -1,3 +1,5 @@
+import type { Opportunity } from "@stablesave/core";
+
 /**
  * Deterministic pseudo-random series so demo numbers stay stable between
  * reloads and server/client renders.
@@ -40,4 +42,38 @@ export function apySeries(key: string, mean: number, sd: number, days = 30): num
   }
   values.push(mean);
   return values;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Adds what the detail view shows for a pool: 90 days of rates (the last 30
+ * are the opportunity's own `apyHistory30d`), the 30-day average, the 7-day
+ * change and how long it has been running. Demo data only.
+ */
+export function withDemoHistory(o: Opportunity, now: Date = new Date()): Opportunity {
+  const recent = o.risk.apyHistory30d;
+  if (recent.length < 8) return o;
+  const mean = recent.reduce((sum, v) => sum + v, 0) / recent.length;
+  const sd = Math.sqrt(recent.reduce((sum, v) => sum + (v - mean) ** 2, 0) / recent.length) || 0.002;
+  const values = [...apySeries(`${o.id}:older`, recent[0]!, sd, 60), ...recent];
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const rateHistory = values.map((apy, i) => ({
+    date: new Date(today - (values.length - 1 - i) * DAY_MS).toISOString().slice(0, 10),
+    apy,
+  }));
+  const launched = o.risk.launchedAt ? Date.parse(o.risk.launchedAt) : Number.NaN;
+  return {
+    ...o,
+    rateHistory,
+    yield: {
+      ...o.yield,
+      avgApy30d: mean,
+      apyChange7d: recent[recent.length - 1]! - recent[recent.length - 8]!,
+    },
+    risk: {
+      ...o.risk,
+      trackRecordDays: Number.isFinite(launched) ? Math.max(0, Math.floor((today - launched) / DAY_MS)) : null,
+    },
+  };
 }

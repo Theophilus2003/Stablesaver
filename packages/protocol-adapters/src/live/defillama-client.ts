@@ -28,6 +28,12 @@ export interface DefiLlamaPool {
   outlier: boolean | null;
   /** Standard deviation of the pool's APY history, in percentage points. */
   sigma: number | null;
+  /** Mean APY over the last 30 days, in percent. */
+  apyMean30d: number | null;
+  /** Change in APY over the last 7 days, in percentage points. */
+  apyPct7D: number | null;
+  /** Days of history DefiLlama has for the pool. */
+  count: number | null;
   underlyingTokens: string[];
 }
 
@@ -50,6 +56,8 @@ export interface DefiLlamaProtocol {
   logo: string | null;
   /** DefiLlama's category, e.g. "Lending", "Yield Aggregator". */
   category: string | null;
+  /** Total value locked across the protocol, in USD. */
+  tvl: number | null;
 }
 
 export interface DefiLlamaChartPoint {
@@ -172,6 +180,7 @@ export class DefiLlamaClient {
               url: httpsUrl(row.url),
               logo: httpsUrl(row.logo),
               category: typeof row.category === "string" ? row.category : null,
+              tvl: num(row.tvl),
             });
           }
         }
@@ -260,6 +269,9 @@ function parsePool(row: unknown): DefiLlamaPool | null {
     stablecoin: typeof row.stablecoin === "boolean" ? row.stablecoin : null,
     outlier: typeof row.outlier === "boolean" ? row.outlier : null,
     sigma: num(row.sigma),
+    apyMean30d: num(row.apyMean30d),
+    apyPct7D: num(row.apyPct7D),
+    count: num(row.count),
     underlyingTokens: strings(row.underlyingTokens),
   };
 }

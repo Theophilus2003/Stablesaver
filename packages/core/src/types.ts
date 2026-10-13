@@ -32,6 +32,18 @@ export interface YieldBreakdown {
   rewardApy: number;
   /** baseApy + rewardApy */
   totalApy: number;
+  /** Average total APY over the last 30 days, when the source reports it. */
+  avgApy30d?: number | null;
+  /** Change in total APY over the last 7 days, in rate points (0.001 = +0.1%). */
+  apyChange7d?: number | null;
+}
+
+/** One day of a pool's rate history. */
+export interface RatePoint {
+  /** ISO date (YYYY-MM-DD). */
+  date: string;
+  /** Total APY that day (decimal). */
+  apy: number;
 }
 
 export interface FeeSchedule {
@@ -101,6 +113,8 @@ export interface RiskData {
   topDepositorsShare: number | null;
   /** Share of borrows backed by the single largest collateral asset (0..1). */
   collateralConcentration: number | null;
+  /** Days this pool has been paying interest, per the data source's history. */
+  trackRecordDays?: number | null;
 }
 
 export interface DataProvenance {
@@ -111,6 +125,8 @@ export interface DataProvenance {
   note?: string;
   /** Where the underlying numbers can be checked, e.g. the DefiLlama pool page. */
   sourceUrl?: string;
+  /** The source's own id for this pool (DefiLlama pool id), used to fetch its rate history. */
+  sourceId?: string;
 }
 
 export interface Opportunity {
@@ -138,6 +154,13 @@ export interface Opportunity {
   liquidityUsd: number;
   /** Number of depositors, when the source provides it. */
   depositors: number | null;
+  /** Total held across the whole protocol (all pools and networks), when known. */
+  protocolTvlUsd?: number | null;
+  /**
+   * Daily rate history (oldest first), when the provider ships it with the
+   * listing. Demo data does; live data is fetched per pool on demand.
+   */
+  rateHistory?: RatePoint[];
   fees: FeeSchedule;
   risk: RiskData;
   /** Official app or site, when known. StableSave never proxies deposits to external protocols. */

@@ -19,7 +19,10 @@ export {
   DEFILLAMA_PROVIDER,
   SOLANA_STABLE_MINTS,
   STABLE_SYMBOLS,
+  fetchRateHistory,
+  isDefiLlamaPoolId,
   selectStablePools,
+  toRateHistory,
   type DefiLlamaProviderOptions,
 } from "./live/defillama-source";
 export {

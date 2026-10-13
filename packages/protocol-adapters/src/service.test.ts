@@ -25,6 +25,18 @@ describe("opportunity service (demo)", () => {
     );
   });
 
+  it("ships 90 days of labelled demo rate history ending with the last 30 days used for grading", async () => {
+    const snapshot = await service.getSnapshot();
+    for (const o of snapshot.opportunities) {
+      const history = o.rateHistory ?? [];
+      expect(history).toHaveLength(90);
+      expect(history.slice(-30).map((p) => p.apy)).toEqual(o.risk.apyHistory30d);
+      expect(history.at(-1)!.apy).toBeCloseTo(o.yield.totalApy);
+      expect(o.yield.avgApy30d).toBeGreaterThan(0);
+      expect(typeof o.yield.apyChange7d).toBe("number");
+    }
+  });
+
   it("produces a spread of grades", async () => {
     const { opportunities } = await service.getSnapshot();
     const grades = new Set(opportunities.map((o) => o.safety.grade));

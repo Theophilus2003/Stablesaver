@@ -1,5 +1,6 @@
 import {
   PROTOCOLS,
+  type RatePoint,
   getNetwork,
   networkIdFromName,
   type FeeSchedule,
@@ -12,6 +13,7 @@ import { LiveDataUnavailableError } from "../errors";
 import type { OpportunityProvider } from "../types";
 import {
   getSharedDefiLlamaClient,
+  type DefiLlamaChartPoint,
   type DefiLlamaClient,
   type DefiLlamaLendBorrow,
   type DefiLlamaPool,
@@ -253,10 +255,17 @@ function toOpportunity(input: {
     network,
     networkName: networkInfo.name,
     asset,
-    yield: { baseApy, rewardApy, totalApy },
+    yield: {
+      baseApy,
+      rewardApy,
+      totalApy,
+      avgApy30d: pool.apyMean30d !== null ? pool.apyMean30d / 100 : null,
+      apyChange7d: pool.apyPct7D !== null ? pool.apyPct7D / 100 : null,
+    },
     tvlUsd,
     liquidityUsd,
     depositors: null,
+    protocolTvlUsd: meta?.tvl ?? null,
     fees,
     risk: {
       launchedAt: meta?.listedAt ? new Date(meta.listedAt * 1000).toISOString().slice(0, 10) : null,
@@ -276,6 +285,7 @@ function toOpportunity(input: {
       withdrawalDelayHours: 0,
       topDepositorsShare: null,
       collateralConcentration: null,
+      trackRecordDays: pool.count,
     },
     officialUrl,
     officialDomain: curated?.officialDomain ?? hostname(officialUrl),
@@ -286,6 +296,36 @@ function toOpportunity(input: {
       fetchedAt,
       note: "Rates and liquidity from DefiLlama, which refreshes them about hourly. Network fees are StableSave estimates, and some risk inputs aren't verified yet.",
       sourceUrl: `https://defillama.com/yields/pool/${pool.pool}`,
+      sourceId: pool.pool,
     },
   };
+}
+
+/** DefiLlama pool ids are UUIDs. Anything else is rejected before a request is made. */
+export function isDefiLlamaPoolId(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
+/**
+ * DefiLlama's daily chart → the last `days` days of rates (decimals), one point
+ * per calendar day, oldest first. Days without a usable rate are skipped.
+ */
+export function toRateHistory(points: readonly DefiLlamaChartPoint[], days = 90): RatePoint[] {
+  const byDay = new Map<string, number>();
+  for (const point of points) {
+    const date = point.timestamp.slice(0, 10);
+    if (point.apy === null || point.apy < 0 || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+    byDay.set(date, point.apy / 100);
+  }
+  const sorted = [...byDay.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return sorted.slice(-days).map(([date, apy]) => ({ date, apy }));
+}
+
+/** Rate history for one DefiLlama pool. Returns [] when it's unavailable. */
+export async function fetchRateHistory(
+  poolId: string,
+  { client = getSharedDefiLlamaClient(), days = 90 }: { client?: DefiLlamaClient; days?: number } = {},
+): Promise<RatePoint[]> {
+  if (!isDefiLlamaPoolId(poolId)) return [];
+  return toRateHistory(await client.chart(poolId), days);
 }

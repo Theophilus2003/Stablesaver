@@ -1,5 +1,6 @@
 import type { Transaction } from "@solana/web3.js";
 import { PROTOCOLS, type Opportunity, type ProtocolId, type RiskData, type StableAsset } from "@stablesave/core";
+import { withDemoHistory } from "../demo/series";
 import { DirectDepositUnavailableError, UnknownMarketError } from "../errors";
 import type {
   AdapterCapabilities,
@@ -50,9 +51,9 @@ export class BaseYieldAdapter implements YieldProtocolAdapter {
     const markets = await this.source.listMarkets();
     const fetchedAt = new Date().toISOString();
     const info = PROTOCOLS[this.id];
-    return markets
+    const opportunities = markets
       .filter((m) => this.supportedAssets.includes(m.asset))
-      .map((m) => ({
+      .map((m): Opportunity => ({
         id: `${this.id}-${m.marketId}`,
         protocolId: this.id,
         protocolName: this.name,
@@ -84,6 +85,7 @@ export class BaseYieldAdapter implements YieldProtocolAdapter {
           ...(m.sourceUrl ? { sourceUrl: m.sourceUrl } : {}),
         },
       }));
+    return this.source.mode === "demo" ? opportunities.map((o) => withDemoHistory(o)) : opportunities;
   }
 
   protected async market(marketId: string): Promise<ProtocolMarket> {

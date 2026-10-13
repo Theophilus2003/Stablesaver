@@ -1,7 +1,7 @@
 import { getNetwork, networkIdFromName, type Opportunity, type StableAsset, type StrategyType } from "@stablesave/core";
 import type { OpportunityProvider } from "../types";
 import { DEMO_PROVIDER } from "./source";
-import { apySeries } from "./series";
+import { apySeries, withDemoHistory } from "./series";
 
 /**
  * DEMO DATA for networks other than Solana.
@@ -49,7 +49,7 @@ function slug(value: string): string {
 
 export function demoMultichainOpportunities(now = new Date()): Opportunity[] {
   const at = now.toISOString();
-  return SPECS.map((spec) => {
+  const opportunities = SPECS.map((spec): Opportunity => {
     const network = getNetwork(networkIdFromName(spec.chain), spec.chain);
     const id = `${spec.protocolId}-${network.id}-${slug(spec.marketName)}-${spec.asset.toLowerCase()}`;
     const totalApy = Math.round((spec.baseApy + spec.rewardApy) * 1e6) / 1e6;
@@ -111,6 +111,7 @@ export function demoMultichainOpportunities(now = new Date()): Opportunity[] {
       },
     };
   });
+  return opportunities.map((o) => withDemoHistory(o, now));
 }
 
 /** Demo options on networks other than Solana. Always reports `mode: "demo"`. */

@@ -2,7 +2,13 @@ import { blendStrategy, EXAMPLE_VAULT_STRATEGIES, recommend, summarizeMarket } f
 import { describe, expect, it, vi } from "vitest";
 import { createDefaultProviders, createOpportunityService } from "../service";
 import { DefiLlamaClient, type FetchLike } from "./defillama-client";
-import { DefiLlamaMarketsProvider, SOLANA_STABLE_MINTS } from "./defillama-source";
+import {
+  DefiLlamaMarketsProvider,
+  fetchRateHistory,
+  isDefiLlamaPoolId,
+  SOLANA_STABLE_MINTS,
+  toRateHistory,
+} from "./defillama-source";
 
 /**
  * TEST FIXTURE shaped like DefiLlama's public API responses (field names per
@@ -31,7 +37,7 @@ const POOLS = {
   status: "success",
   data: [
     // Solana vault protocols
-    pool({ pool: "kmn-usdc-main", project: "kamino-lend", symbol: "USDC", tvlUsd: 300_000_000, apy: 5.2, apyBase: 4.9, apyReward: 0.3, poolMeta: "Main Market" }),
+    pool({ pool: "kmn-usdc-main", project: "kamino-lend", symbol: "USDC", tvlUsd: 300_000_000, apy: 5.2, apyBase: 4.9, apyReward: 0.3, poolMeta: "Main Market", apyMean30d: 5.05, apyPct7D: -0.12, count: 730 }),
     pool({ pool: "kmn-usdc-jlp", project: "kamino-lend", symbol: "USDC", tvlUsd: 40_000_000, apy: 8.1, apyBase: 8.1, poolMeta: "JLP Market" }),
     pool({ pool: "kmn-usdt-main", project: "kamino-lend", symbol: "USDT", tvlUsd: 60_000_000, apy: 4.4, apyBase: 4.4, poolMeta: "Main Market", underlyingTokens: [USDT] }),
     pool({ pool: "mfi-usdc", project: "marginfi-lending", symbol: "USDC", tvlUsd: 120_000_000, apy: 4.9, apyBase: 4.5, apyReward: 0.4 }),
@@ -61,7 +67,7 @@ const LEND_BORROW = [
 ];
 
 const PROTOCOLS = [
-  { slug: "kamino-lend", name: "Kamino Lend", category: "Lending", listedAt: 1_696_118_400, audits: "2", audit_links: ["a", "b", "c", "d"], oracles: ["Pyth", "Switchboard"], url: "https://kamino.finance", logo: "https://icons.llama.fi/kamino.png" },
+  { slug: "kamino-lend", name: "Kamino Lend", category: "Lending", tvl: 2_500_000_000, listedAt: 1_696_118_400, audits: "2", audit_links: ["a", "b", "c", "d"], oracles: ["Pyth", "Switchboard"], url: "https://kamino.finance", logo: "https://icons.llama.fi/kamino.png" },
   { slug: "marginfi-lending", name: "marginfi", category: "Lending", listedAt: 1_673_740_800, audits: "2", audit_links: ["a", "b"], oracles: ["Pyth"] },
   { slug: "drift-trade", name: "Drift", category: "Derivatives", audits: "2", audit_links: [] },
   { slug: "aave-v3", name: "Aave V3", category: "Lending", listedAt: 1_647_302_400, audits: "2", audit_links: ["a", "b", "c"], oracles: ["Chainlink"], url: "https://aave.com", logo: "https://icons.llama.fi/aave-v3.png" },
@@ -137,6 +143,21 @@ describe("DefiLlamaMarketsProvider", () => {
     expect(main.risk.launchedAt).toBe("2023-10-01");
     expect(main.risk.incidentsReviewed).toBe(false);
     expect(main.provenance.sourceUrl).toBe("https://defillama.com/yields/pool/kmn-usdc-main");
+    expect(main.provenance.sourceId).toBe("kmn-usdc-main");
+  });
+
+  it("passes on the 30-day average, the 7-day change, the track record and the protocol's size", async () => {
+    const opps = await provider().listOpportunities();
+    const main = byPool(opps, "kmn-usdc-main");
+    expect(main.yield.avgApy30d).toBeCloseTo(0.0505);
+    expect(main.yield.apyChange7d).toBeCloseTo(-0.0012);
+    expect(main.risk.trackRecordDays).toBe(730);
+    expect(main.protocolTvlUsd).toBe(2_500_000_000);
+    const drift = byPool(opps, "drift-usdc");
+    expect(drift.yield.avgApy30d).toBeNull();
+    expect(drift.yield.apyChange7d).toBeNull();
+    expect(drift.risk.trackRecordDays).toBeNull();
+    expect(drift.protocolTvlUsd).toBeNull();
   });
 
   it("estimates network fees per chain", async () => {
@@ -246,5 +267,54 @@ describe("live opportunity service", () => {
     expect(snapshot.adapters).toHaveLength(1);
     expect(snapshot.adapters[0]!.status).toBe("unavailable");
     expect(snapshot.adapters[0]!.message).toMatch(/Couldn't reach DefiLlama/);
+  });
+});
+
+describe("rate history", () => {
+  const POOL_ID = "747c1d2a-c668-4682-b9f9-296708a3dd90";
+
+  it("keeps one rate per day, oldest first, as decimals", () => {
+    const history = toRateHistory(
+      [
+        { timestamp: "2026-10-02T23:01:00.000Z", apy: 4.1, tvlUsd: 1 },
+        { timestamp: "2026-10-01T23:01:00.000Z", apy: 4, tvlUsd: 1 },
+        { timestamp: "2026-10-02T23:59:00.000Z", apy: 4.2, tvlUsd: 1 },
+        { timestamp: "2026-10-03T23:01:00.000Z", apy: null, tvlUsd: 1 },
+        { timestamp: "garbage", apy: 3, tvlUsd: 1 },
+      ],
+      90,
+    );
+    expect(history.map((p) => p.date)).toEqual(["2026-10-01", "2026-10-02"]);
+    expect(history[0]!.apy).toBeCloseTo(0.04);
+    expect(history[1]!.apy).toBeCloseTo(0.042);
+  });
+
+  it("returns only the most recent days", () => {
+    const points = Array.from({ length: 120 }, (_, i) => ({
+      timestamp: new Date(Date.UTC(2026, 0, 1 + i)).toISOString(),
+      apy: i,
+      tvlUsd: 1,
+    }));
+    const history = toRateHistory(points, 90);
+    expect(history).toHaveLength(90);
+    expect(history.at(-1)!.date).toBe("2026-04-30");
+    expect(history.at(-1)!.apy).toBeCloseTo(1.19);
+  });
+
+  it("fetches a pool's chart and rejects ids that aren't DefiLlama pool ids", async () => {
+    const fetch = vi.fn(async (input: string | URL | Request) =>
+      String(input).endsWith(`/chart/${POOL_ID}`)
+        ? new Response(JSON.stringify({ status: "success", data: [{ timestamp: "2026-10-01T23:01:00.000Z", apy: 3.76, tvlUsd: 1 }] }))
+        : new Response("not found", { status: 404 }),
+    );
+    const client = new DefiLlamaClient({ fetch: fetch as unknown as FetchLike });
+    expect(isDefiLlamaPoolId(POOL_ID)).toBe(true);
+    expect(isDefiLlamaPoolId("../pools")).toBe(false);
+    const history = await fetchRateHistory(POOL_ID, { client });
+    expect(history).toHaveLength(1);
+    expect(history[0]!.date).toBe("2026-10-01");
+    expect(history[0]!.apy).toBeCloseTo(0.0376);
+    expect(await fetchRateHistory("../pools", { client })).toEqual([]);
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 });
