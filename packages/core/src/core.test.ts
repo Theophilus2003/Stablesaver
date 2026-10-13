@@ -10,6 +10,11 @@ import {
   maxScoreFor,
   meetsGrade,
   validateStrategy,
+  getNetwork,
+  networkIdFromName,
+  defiLlamaIconUrl,
+  defiLlamaChainIconUrl,
+  PROTOCOLS,
 } from "./index";
 
 describe("estimateEarnings", () => {
@@ -98,5 +103,21 @@ describe("format", () => {
     expect(formatCompactUsd(1_200_000_000)).toBe("$1.2B");
     expect(formatCountdown(27 * 60 + 42)).toBe("27:42");
     expect(formatCountdown(3789)).toBe("1:03:09");
+  });
+});
+
+describe("network and protocol icons", () => {
+  it("maps DefiLlama chain names to bundled icons, and leaves unknown chains to the fallback", () => {
+    expect(getNetwork(networkIdFromName("Arbitrum")).icon).toBe("arbitrum-one");
+    expect(getNetwork(networkIdFromName("BSC")).icon).toBe("binance-smart-chain");
+    expect(getNetwork(networkIdFromName("OP Mainnet")).icon).toBe("optimism");
+    expect(getNetwork(networkIdFromName("Hyperliquid L1"), "Hyperliquid L1").icon).toBe("hyper-evm");
+    expect(getNetwork("some-new-chain", "Some New Chain").icon).toBeNull();
+  });
+
+  it("builds DefiLlama icon URLs from slugs and chain names", () => {
+    expect(defiLlamaIconUrl("aave-v3")).toBe("https://icons.llamao.fi/icons/protocols/aave-v3?w=96&h=96");
+    expect(defiLlamaChainIconUrl("Hyperliquid L1")).toBe("https://icons.llamao.fi/icons/chains/rsz_hyperliquid%20l1?w=48&h=48");
+    expect(PROTOCOLS.kamino.logoUrls[0]).toContain("kamino-lend");
   });
 });

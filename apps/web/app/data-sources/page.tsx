@@ -1,9 +1,10 @@
 import { PROTOCOLS, formatRelativeTime, getNetwork, isVaultProtocol } from "@stablesave/core";
-import { Badge, StatusDot } from "@stablesave/ui";
+import { Badge, NetworkIcon, StatusDot } from "@stablesave/ui";
 import type { Metadata } from "next";
 import { ProsePage, ProseSection } from "@/components/layout/prose-page";
 import { getMarketSnapshot } from "@/lib/data/snapshot";
 import { formatNetworkFee } from "@/lib/format";
+import { networkBadge } from "@/lib/logos";
 import { CLUSTER_LABEL, getPublicEnv } from "@/lib/env";
 
 // Market data is fetched per request (and cached in-process), never at build time.
@@ -101,7 +102,7 @@ export default async function DataSourcesPage() {
             {networks.map((n) => (
               <li key={n.id} className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
                 <span className="flex items-center gap-2 text-fg">
-                  <span className="size-1.5 rounded-full" style={{ backgroundColor: n.color }} aria-hidden />
+                  <NetworkIcon network={networkBadge(n)} className="size-4" />
                   {n.name}
                   <span className="text-xs text-fg-subtle tabular-nums">
                     {n.count} {n.count === 1 ? "option" : "options"}

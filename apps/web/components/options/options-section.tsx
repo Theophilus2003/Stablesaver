@@ -5,15 +5,17 @@ import {
   sortOptions,
   type MarketSnapshot,
   type NetworkId,
+  type NetworkInfo,
   type RankedOption,
   type Recommendation,
   type SortMode,
 } from "@stablesave/core";
-import { Button, PillTabs } from "@stablesave/ui";
+import { Button, NetworkIcon, cn } from "@stablesave/ui";
 import { CircleAlert } from "lucide-react";
 import { motion } from "motion/react";
 import * as React from "react";
 import { formatUsd } from "@/lib/format";
+import { networkBadge } from "@/lib/logos";
 import { OptionRow } from "./option-row";
 
 const SORTS: Array<{ value: SortMode; label: string }> = [
@@ -47,15 +49,13 @@ export function OptionsSection({
 
   // Networks that have options for the chosen stablecoin, most options first.
   const networks = React.useMemo(() => {
-    const counts = new Map<NetworkId, { name: string; color: string; count: number }>();
+    const counts = new Map<NetworkId, NetworkInfo & { count: number }>();
     for (const { opportunity: o } of recommendation.ranked) {
       const entry = counts.get(o.network);
       if (entry) entry.count += 1;
       else counts.set(o.network, { ...getNetwork(o.network, o.networkName), count: 1 });
     }
-    return [...counts.entries()]
-      .map(([id, info]) => ({ id, ...info }))
-      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    return [...counts.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
   }, [recommendation.ranked]);
 
   // A network with nothing for this stablecoin falls back to all networks.
@@ -66,61 +66,36 @@ export function OptionsSection({
   const firstIneligible = sort === "best" ? rows.findIndex((r) => !r.eligible) : -1;
   const bestId = recommendation.best?.opportunity.id;
 
-  const networkOptions: Array<{ value: NetworkFilter; label: React.ReactNode }> = [
-    { value: "all", label: <ChipLabel name="All networks" count={recommendation.ranked.length} /> },
-    ...networks.map((n) => ({
-      value: n.id as NetworkFilter,
-      label: <ChipLabel name={n.name} count={n.count} color={n.color} />,
-    })),
-  ];
-
   return (
     <section id="options" className="scroll-mt-24" aria-labelledby="options-title">
-      <div className="flex flex-wrap items-end justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 id="options-title" className="text-[22px] font-semibold tracking-[-0.02em]">
           All options <span className="ml-1 tabular-nums text-fg-subtle">{filtered.length}</span>
         </h2>
-        <p className="text-xs text-fg-muted">
-          {recommendation.asset} · yearly estimates for {formatUsd(recommendation.amount, { decimals: 0 })}, after fees
-        </p>
-      </div>
-
-      <div className="mt-4 flex flex-col gap-2">
-        <PillTabs
-          label="Sort options"
+        <SortControl
           value={sort}
-          onValueChange={(v) => {
+          onChange={(v) => {
             setSort(v);
             setLimit(PAGE_SIZE);
           }}
-          options={SORTS}
-          className="-mx-1 shrink-0"
-        />
-        <PillTabs
-          label="Network"
-          value={activeNetwork}
-          onValueChange={(v) => {
-            setNetwork(v);
-            setLimit(PAGE_SIZE);
-          }}
-          options={networkOptions}
-          className="-mx-1 min-w-0 sm:[mask-image:linear-gradient(90deg,#000_94%,transparent)]"
         />
       </div>
+
+      <NetworkChips
+        networks={networks}
+        total={recommendation.ranked.length}
+        value={activeNetwork}
+        onChange={(v) => {
+          setNetwork(v);
+          setLimit(PAGE_SIZE);
+        }}
+      />
 
       {snapshot.opportunities.length === 0 ? (
         <UnavailableState snapshot={snapshot} />
       ) : (
-        <div className="mt-4 overflow-hidden rounded-[24px] border border-line bg-surface">
-          <div className="hidden grid-cols-[minmax(0,1.7fr)_minmax(0,1.1fr)_52px_76px_92px_36px] gap-x-4 border-b border-line px-5 py-3 text-xs text-fg-subtle md:grid">
-            <span>Option</span>
-            <span>Network · Liquidity</span>
-            <span>Grade</span>
-            <span className="text-right">Rate</span>
-            <span className="text-right">Per year</span>
-            <span />
-          </div>
-          <motion.ul layout className="divide-y divide-line">
+        <div className="mt-4 rounded-[28px] bg-surface p-2">
+          <motion.ul layout>
             {rows.map((row, i) => (
               <motion.li
                 key={row.opportunity.id}
@@ -128,9 +103,11 @@ export function OptionsSection({
                 transition={{ type: "spring", stiffness: 500, damping: 45 }}
               >
                 {i === firstIneligible && i > 0 ? (
-                  <div className="bg-canvas/40 px-5 py-2 text-[11px] font-medium uppercase tracking-[0.12em] text-fg-subtle">
+                  <div className="mx-3 mt-2 border-t border-line px-1 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-subtle sm:mx-4">
                     {dividerLabel(sorted.filter((r) => !r.eligible))}
                   </div>
+                ) : i > 0 ? (
+                  <div className="mx-3 h-px bg-line sm:mx-4" aria-hidden />
                 ) : null}
                 <OptionRow
                   option={row}
@@ -143,11 +120,11 @@ export function OptionsSection({
             ))}
           </motion.ul>
           {rows.length === 0 ? (
-            <p className="p-6 text-sm text-fg-muted">No {recommendation.asset} options on this network right now.</p>
+            <p className="p-5 text-sm text-fg-muted">No {recommendation.asset} options on this network right now.</p>
           ) : null}
           {sorted.length > rows.length ? (
-            <div className="border-t border-line p-3">
-              <Button variant="ghost" className="w-full" onClick={() => setLimit((l) => l + PAGE_SIZE * 2)}>
+            <div className="mx-3 mt-1 border-t border-line pt-2 sm:mx-4">
+              <Button variant="ghost" className="w-full rounded-full" onClick={() => setLimit((l) => l + PAGE_SIZE * 2)}>
                 Show more <span className="tabular-nums text-fg-subtle">{sorted.length - rows.length} left</span>
               </Button>
             </div>
@@ -156,7 +133,8 @@ export function OptionsSection({
       )}
 
       <p className="mt-4 text-xs leading-relaxed text-fg-subtle">
-        Rates change. Your return isn&apos;t guaranteed. Network fees are rough estimates for one deposit and one
+        Yearly estimates for {formatUsd(recommendation.amount, { decimals: 0 })} of {recommendation.asset}, after network
+        fees. Rates change. Your return isn&apos;t guaranteed. Network fees are rough estimates for one deposit and one
         withdrawal. Grades are a StableSave safety assessment, not a guarantee against loss.
         {snapshot.mode === "live" ? (
           <>
@@ -205,12 +183,81 @@ function dividerLabel(unfit: readonly RankedOption[]): string {
   return "Not a fit right now";
 }
 
-function ChipLabel({ name, count, color }: { name: string; count: number; color?: string }) {
+function SortControl({ value, onChange }: { value: SortMode; onChange: (value: SortMode) => void }) {
   return (
-    <>
-      {color ? <span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: color }} aria-hidden /> : null}
-      <span className="whitespace-nowrap">{name}</span>
-      <span className="tabular-nums opacity-60">{count}</span>
-    </>
+    <div
+      role="radiogroup"
+      aria-label="Sort options"
+      className="scrollbar-none -mx-1 flex max-w-full gap-0.5 overflow-x-auto rounded-full bg-surface-2 p-1 sm:mx-0"
+    >
+      {SORTS.map((option) => {
+        const selected = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            onClick={() => onChange(option.value)}
+            className={cn(
+              "h-8 shrink-0 whitespace-nowrap rounded-full px-3.5 text-[13px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-fg/40",
+              selected ? "bg-canvas font-semibold text-fg shadow-sm" : "text-fg-muted hover:text-fg",
+            )}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function NetworkChips({
+  networks,
+  total,
+  value,
+  onChange,
+}: {
+  networks: ReadonlyArray<NetworkInfo & { count: number }>;
+  total: number;
+  value: NetworkFilter;
+  onChange: (value: NetworkFilter) => void;
+}) {
+  const chips: Array<{ value: NetworkFilter; name: string; count: number; network?: NetworkInfo }> = [
+    { value: "all", name: "All networks", count: total },
+    ...networks.map((n) => ({ value: n.id as NetworkFilter, name: n.name, count: n.count, network: n })),
+  ];
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Network"
+      className="scrollbar-none -mx-4 mt-4 flex gap-2 overflow-x-auto px-4 [mask-image:linear-gradient(90deg,#000_88%,transparent)] sm:-mx-1 sm:px-1"
+    >
+      {chips.map((chip) => {
+        const selected = chip.value === value;
+        return (
+          <button
+            key={chip.value}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            onClick={() => onChange(chip.value)}
+            className={cn(
+              "inline-flex h-10 shrink-0 items-center gap-2 rounded-full px-4 text-[13px] font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-fg/40",
+              selected ? "bg-fg text-canvas" : "bg-surface-2 text-fg hover:bg-surface-3",
+              chip.network && "pl-2.5",
+            )}
+          >
+            {chip.network ? <NetworkIcon network={networkBadge(chip.network)} className="size-5" /> : null}
+            <span className="whitespace-nowrap">{chip.name}</span>
+            {chip.value !== "all" ? (
+              <span className={cn("text-xs font-medium tabular-nums", selected ? "text-canvas/55" : "text-fg-subtle")}>
+                {chip.count}
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
+    </div>
   );
 }

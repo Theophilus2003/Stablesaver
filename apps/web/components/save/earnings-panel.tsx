@@ -5,6 +5,7 @@ import { AnimatedNumber, Badge, GradeBadge, Panel, ProtocolMark, cn } from "@sta
 import { ChevronRight, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { formatEarnings, formatNetworkFee } from "@/lib/format";
+import { networkBadge, protocolLogoUrls } from "@/lib/logos";
 
 export interface EarningsPanelProps {
   option: RankedOption | null;
@@ -89,7 +90,13 @@ export function EarningsPanel({
                 transition={{ duration: 0.2 }}
                 className="flex items-center gap-2"
               >
-                <ProtocolMark protocolId={o.protocolId} name={o.protocolName} logoUrl={o.protocolLogo} network={network} size="sm" />
+                <ProtocolMark
+                  protocolId={o.protocolId}
+                  name={o.protocolName}
+                  logoUrl={protocolLogoUrls(o.protocolId, o.protocolLogo)}
+                  network={network ? networkBadge(network) : null}
+                  size="sm"
+                />
                 <span className="max-w-[9rem] truncate sm:max-w-[12rem]">{o.protocolName}</span>
               </motion.span>
             </AnimatePresence>

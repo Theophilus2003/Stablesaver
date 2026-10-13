@@ -11,6 +11,7 @@ const GRADE_STYLES: Record<GradeLetter, string> = {
 };
 
 const SIZES = {
+  xs: "size-[18px] text-[10px] rounded-full",
   sm: "h-6 min-w-6 px-1.5 text-xs rounded-[7px]",
   md: "h-7 min-w-7 px-1.5 text-[13px] rounded-lg",
   lg: "h-10 min-w-10 px-2 text-lg rounded-xl",

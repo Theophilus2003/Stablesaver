@@ -14,10 +14,11 @@ export function TokenDot({ asset, className }: { asset: StableAsset; className?:
   return (
     <span
       aria-hidden
-      className={cn("inline-flex size-5 items-center justify-center rounded-full text-[9px] font-bold text-white", className)}
+      className={cn("inline-flex size-5 shrink-0 overflow-hidden rounded-full", className)}
       style={{ backgroundColor: TOKEN_TINT[asset] }}
     >
-      $
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={`/tokens/${asset.toLowerCase()}.svg`} alt="" decoding="async" className="size-full" />
     </span>
   );
 }

@@ -1,0 +1,2 @@
+Icons from web3icons (https://web3icons.io) by 0xa3k5, MIT License.
+Copied unmodified from @web3icons/core 4.0.58, except for unique clip-path ids.

@@ -28,6 +28,7 @@ import { useEnvironment } from "@/components/providers/environment";
 import { ConnectButton } from "@/components/wallet/connect-button";
 import { useWalletDialog } from "@/components/wallet/wallet-providers";
 import { formatEarnings, formatPercent, formatUsd } from "@/lib/format";
+import { protocolLogoUrls } from "@/lib/logos";
 import { EarningsChart } from "./earnings-chart";
 import { useVault } from "./use-vault";
 import { PendingWithdrawalCard, StrategySummary, VaultModeBanner, allocationSegments } from "./vault-parts";
@@ -277,7 +278,7 @@ function Dashboard({ snapshot }: { snapshot: MarketSnapshot }) {
         <ul className="divide-y divide-line border-t border-line">
           {p.positions.map((pos) => (
             <li key={pos.protocolId} className="flex items-center gap-3 px-6 py-4">
-              <ProtocolMark protocolId={pos.protocolId} name={pos.name} />
+              <ProtocolMark protocolId={pos.protocolId} name={pos.name} logoUrl={protocolLogoUrls(pos.protocolId, null)} />
               <div className="min-w-0 flex-1">
                 <p className="text-[15px] font-medium">{pos.name}</p>
                 <p className="truncate text-[13px] text-fg-muted">

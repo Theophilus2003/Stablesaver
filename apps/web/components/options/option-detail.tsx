@@ -12,14 +12,15 @@ import {
   type RatedOpportunity,
   type RatePoint,
   type RiskFactorId,
-  type StableAsset,
   type StrategyType,
 } from "@stablesave/core";
 import { Badge, Button, ProtocolMark, Skeleton, StatusDot, cn } from "@stablesave/ui";
 import { ArrowRight, ArrowUpRight, CircleHelp, ShieldCheck, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
+import { TokenDot } from "@/components/save/asset-select";
 import { formatEarnings, formatNetworkFee } from "@/lib/format";
+import { networkBadge, protocolLogoUrls } from "@/lib/logos";
 import { RateChart } from "./rate-chart";
 import { useRateHistory, type RateHistoryState } from "./use-rate-history";
 
@@ -64,7 +65,13 @@ export function OptionHeader({
   const network = getNetwork(o.network, o.networkName);
   return (
     <div className="flex min-w-0 items-center gap-3.5">
-      <ProtocolMark protocolId={o.protocolId} name={o.protocolName} logoUrl={o.protocolLogo} network={network} size="lg" />
+      <ProtocolMark
+        protocolId={o.protocolId}
+        name={o.protocolName}
+        logoUrl={protocolLogoUrls(o.protocolId, o.protocolLogo)}
+        network={networkBadge(network)}
+        size="lg"
+      />
       <div className="min-w-0">
         <Title className="truncate text-xl font-semibold tracking-[-0.02em] text-fg">{o.protocolName}</Title>
         <p className="mt-0.5 text-[13px] leading-snug text-fg-muted">
@@ -466,8 +473,6 @@ function FactorRow({ factor: f, name }: { factor: FactorAssessment; name: string
 
 /* ------------------------------------------------------------ how to deposit */
 
-const ASSET_COLOR: Record<StableAsset, string> = { USDC: "#2775CA", USDT: "#26A17B" };
-
 function DepositSteps({ opportunity: o }: { opportunity: RatedOpportunity }) {
   const network = getNetwork(o.network, o.networkName);
   const steps: React.ReactNode[] = [
@@ -489,13 +494,7 @@ function DepositSteps({ opportunity: o }: { opportunity: RatedOpportunity }) {
     <>
       Find the{" "}
       <span className="inline-flex translate-y-px items-center gap-1 rounded-md bg-surface-3 px-1.5 py-px font-medium text-fg">
-        <span
-          className="flex size-3.5 items-center justify-center rounded-full text-[8px] font-bold text-white"
-          style={{ backgroundColor: ASSET_COLOR[o.asset] }}
-          aria-hidden
-        >
-          {o.asset === "USDC" ? "$" : "₮"}
-        </span>
+        <TokenDot asset={o.asset} className="size-3.5" />
         {poolName(o)}
       </span>{" "}
       pool and deposit {o.asset}.

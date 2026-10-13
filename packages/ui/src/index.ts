@@ -19,5 +19,5 @@ export {
   DialogDescription,
   DialogContent,
 } from "./sheet";
-export { ProtocolMark, PROTOCOL_COLORS } from "./protocol-mark";
+export { NetworkIcon, ProtocolMark, PROTOCOL_COLORS, type NetworkBadge } from "./protocol-mark";
 export { AllocationBar, AllocationLegend, type AllocationSegment } from "./allocation-bar";

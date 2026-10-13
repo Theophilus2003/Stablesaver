@@ -5,7 +5,7 @@ import { cn } from "./cn";
 
 /**
  * Protocol logo (hot-linked from the data provider, never bundled) with a
- * monogram fallback, plus an optional network badge in the corner.
+ * monogram fallback, plus an optional network icon in the corner.
  */
 const PROTOCOL_TINTS: Record<string, { bg: string; fg: string }> = {
   kamino: { bg: "#1b2a3d", fg: "#8fb8ff" },
@@ -16,10 +16,58 @@ const PROTOCOL_TINTS: Record<string, { bg: string; fg: string }> = {
 };
 
 const SIZES = {
-  sm: { box: "size-7 rounded-[9px] text-[11px]", badge: "size-2.5 -right-0.5 -bottom-0.5" },
-  md: { box: "size-9 rounded-[11px] text-[13px]", badge: "size-3 -right-0.5 -bottom-0.5" },
-  lg: { box: "size-12 rounded-[14px] text-base", badge: "size-3.5 -right-0.5 -bottom-0.5" },
+  sm: { box: "size-7 text-[11px]", badge: "size-3.5 -right-1 -bottom-0.5 ring-[1.5px]" },
+  md: { box: "size-10 text-[15px]", badge: "size-[18px] -right-1 -bottom-0.5 ring-2" },
+  lg: { box: "size-12 text-base", badge: "size-5 -right-1 -bottom-0.5 ring-2" },
 } as const;
+
+export interface NetworkBadge {
+  name: string;
+  /** Shown when no icon loads. */
+  color: string;
+  /** Icon candidates, best first. */
+  iconUrls?: readonly string[];
+}
+
+/**
+ * Tries each URL in turn and reports when none loaded. Keeps the index per
+ * list, so a re-render with the same URLs doesn't retry broken ones.
+ */
+function useFirstLoading(urls: readonly string[]): {
+  src: string | null;
+  onError: () => void;
+  ref: React.RefCallback<HTMLImageElement>;
+} {
+  const key = urls.join("|");
+  const [state, setState] = React.useState({ key, index: 0 });
+  const index = state.key === key ? state.index : 0;
+  const onError = React.useCallback(() => setState({ key, index: index + 1 }), [key, index]);
+  // An image that failed before hydration never fires onError for React, so check on mount.
+  const ref = React.useCallback(
+    (img: HTMLImageElement | null) => {
+      if (img?.complete) img.decode().catch(onError);
+    },
+    [onError],
+  );
+  return { src: urls[index] ?? null, onError, ref };
+}
+
+/** A network's icon in a circle, falling back to its colour. */
+export function NetworkIcon({ network, className }: { network: NetworkBadge; className?: string }) {
+  const { src, onError, ref } = useFirstLoading(network.iconUrls ?? []);
+  return (
+    <span
+      title={network.name}
+      className={cn("inline-flex shrink-0 overflow-hidden rounded-full", className)}
+      style={{ backgroundColor: src ? undefined : network.color }}
+    >
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img ref={ref} src={src} alt="" decoding="async" referrerPolicy="no-referrer" onError={onError} className="size-full object-cover" />
+      ) : null}
+    </span>
+  );
+}
 
 export function ProtocolMark({
   protocolId,
@@ -31,46 +79,45 @@ export function ProtocolMark({
 }: {
   protocolId: string;
   name: string;
-  logoUrl?: string | null;
-  /** Shows a coloured dot for the network in the corner. */
-  network?: { name: string; color: string } | null;
+  /** Logo URL, or candidates tried in order. */
+  logoUrl?: string | readonly string[] | null;
+  /** Shows the network's icon in the corner. */
+  network?: NetworkBadge | null;
   size?: keyof typeof SIZES;
   className?: string;
 }) {
-  const [failed, setFailed] = React.useState(false);
+  const urls = React.useMemo(
+    () => (Array.isArray(logoUrl) ? logoUrl : logoUrl ? [logoUrl as string] : []),
+    [logoUrl],
+  );
+  const { src, onError, ref } = useFirstLoading(urls);
   const tint = PROTOCOL_TINTS[protocolId] ?? { bg: "#222", fg: "#ddd" };
-  const showLogo = Boolean(logoUrl) && !failed;
   return (
     <span aria-hidden className={cn("relative inline-flex shrink-0", className)}>
       <span
         className={cn(
-          "inline-flex items-center justify-center overflow-hidden font-semibold tracking-tight ring-1 ring-inset ring-white/8",
+          "inline-flex items-center justify-center overflow-hidden rounded-full font-semibold tracking-tight ring-1 ring-inset ring-white/8",
           SIZES[size].box,
         )}
-        style={{ backgroundColor: tint.bg, color: tint.fg }}
+        style={src ? { backgroundColor: "#1a1a1c" } : { backgroundColor: tint.bg, color: tint.fg }}
       >
-        {showLogo ? (
+        {src ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={logoUrl!}
+            ref={ref}
+            src={src}
             alt=""
             loading="lazy"
             decoding="async"
             referrerPolicy="no-referrer"
-            onError={() => setFailed(true)}
+            onError={onError}
             className="size-full object-cover"
           />
         ) : (
           name.charAt(0).toUpperCase()
         )}
       </span>
-      {network ? (
-        <span
-          title={network.name}
-          className={cn("absolute rounded-full ring-2 ring-surface", SIZES[size].badge)}
-          style={{ backgroundColor: network.color }}
-        />
-      ) : null}
+      {network ? <NetworkIcon network={network} className={cn("absolute ring-surface", SIZES[size].badge)} /> : null}
     </span>
   );
 }
