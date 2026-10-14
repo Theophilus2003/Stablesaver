@@ -4,8 +4,11 @@ import {
   buildCancelWithdrawalInstruction,
   buildDepositInstruction,
   buildExecuteWithdrawalInstruction,
+  buildSyncPoolsInstructions,
   buildWithdrawPlan,
   deriveVaultAddresses,
+  fetchPracticePools,
+  poolLiquidity,
   describeVaultError,
   extractCustomErrorCode,
   fetchMaybeUserPosition,
@@ -14,12 +17,14 @@ import {
   instantWithdrawalAllowance,
   summarizePosition,
   toBaseUnits,
+  type PracticePoolRef,
   type RiskProfileId,
   type UserPosition,
   type Vault,
 } from "@stablesave/client";
 import { toWeb3JsInstructions } from "@stablesave/client/web3js";
 import {
+  PROTOCOLS,
   RISK_PROFILE_IDS,
   RISK_PROFILES,
   blendStrategy,
@@ -30,7 +35,7 @@ import {
   type VaultStrategy,
 } from "@stablesave/core";
 import { DEFAULT_USDC_MARKET } from "./config";
-import { positionsFromBlend, type Portfolio } from "./portfolio";
+import { positionsFromBlend, type OnchainBreakdown, type Portfolio, type PortfolioPosition } from "./portfolio";
 
 /**
  * Talks to a deployed StableSave vault: reads accounts with the Codama client
@@ -53,6 +58,8 @@ export interface OnchainVaultState {
   vault: Vault;
   reserveAmount: bigint;
   position: UserPosition | null;
+  /** Practice pools the vault has opened. Empty before the allocator is set up. */
+  pools: PracticePoolRef[];
 }
 
 /** Associated token account for (owner, mint) on the legacy token program. */
@@ -94,7 +101,10 @@ export async function loadVaults(config: OnchainConfig, owner?: string): Promise
       );
       const vaultAccount = await fetchMaybeVault(rpc, ids.vault);
       if (!vaultAccount.exists) return null;
-      const reserve = await rpc.getTokenAccountBalance(vaultAccount.data.reserve).send();
+      const [reserve, pools] = await Promise.all([
+        rpc.getTokenAccountBalance(vaultAccount.data.reserve).send(),
+        fetchPracticePools(rpc, ids.vault, { programAddress }),
+      ]);
       let position: UserPosition | null = null;
       if (ids.position) {
         const p = await fetchMaybeUserPosition(rpc, ids.position);
@@ -107,6 +117,7 @@ export async function loadVaults(config: OnchainConfig, owner?: string): Promise
         vault: vaultAccount.data,
         reserveAmount: BigInt(reserve.value.amount),
         position,
+        pools,
       };
     }),
   );
@@ -143,17 +154,40 @@ export function onchainPortfolio(
   const balance = summary ? fromBaseUnits(summary.totalAssets) : 0;
   const blend = blendStrategy(strategyFromVault(state), opportunities, balance);
   if (!blend) return null;
-  const allowance = position ? instantWithdrawalAllowance(vault, position, state.reserveAmount, nowSeconds) : null;
+  const allowance = position
+    ? instantWithdrawalAllowance(vault, position, state.reserveAmount, nowSeconds, poolLiquidity(state.pools))
+    : null;
+  const onchain = breakdown(state);
+  // With money in the pools, show this position's real share of each pool at its practice rate.
+  const positions: PortfolioPosition[] =
+    onchain && onchain.vaultTotal > 0 && vault.deployedAssets > 0n
+      ? onchain.pools.map((pool) => {
+          const leg = blend.legs.find((l) => l.allocation.protocolId === pool.protocolId);
+          return {
+            protocolId: pool.protocolId,
+            name: pool.name,
+            amount: (pool.amount * balance) / onchain.vaultTotal,
+            apy: pool.apy,
+            grade: leg?.opportunity.safety.display ?? "—",
+            weightBps: pool.targetBps,
+            marketName: "Practice pool",
+          };
+        })
+      : positionsFromBlend(blend, balance);
+  const practiceApy =
+    onchain && onchain.vaultTotal > 0 && vault.deployedAssets > 0n
+      ? onchain.pools.reduce((sum, pool) => sum + pool.amount * pool.apy, 0) / onchain.vaultTotal
+      : null;
 
   return {
     source: "onchain",
     profile: state.profile,
     balance,
     earned: summary ? signedUsd(summary.earned) : 0,
-    apy: blend.apy,
+    apy: practiceApy ?? blend.apy,
     grade: blend.safety.display,
     allocations: blend.strategy.allocations,
-    positions: positionsFromBlend(blend, balance),
+    positions,
     history: [],
     pending:
       position && summary && position.pendingShares > 0n
@@ -171,7 +205,30 @@ export function onchainPortfolio(
     },
     hasDeposits: balance > 0,
     undeployed: vault.deployedAssets === 0n,
+    onchain: onchain ?? undefined,
   };
+}
+
+/** The whole vault's money by place: reserve plus each practice pool. Null without pools. */
+function breakdown(state: OnchainVaultState): OnchainBreakdown | null {
+  if (state.pools.length === 0) return null;
+  const weights = new Map(state.vault.strategy.allocations.map((a) => [a.protocol as number, a.weightBps]));
+  const pools = state.pools.flatMap((pool) => {
+    const protocolId = protocolFromOnchainId(pool.data.protocol);
+    if (!protocolId) return [];
+    return [
+      {
+        protocolId,
+        name: PROTOCOLS[protocolId].name,
+        amount: fromBaseUnits(pool.data.deployed),
+        apy: pool.data.apyBps / 10_000,
+        interestPaid: fromBaseUnits(pool.data.interestPaid),
+        targetBps: weights.get(pool.data.protocol as number) ?? 0,
+      },
+    ];
+  });
+  const reserve = fromBaseUnits(state.reserveAmount);
+  return { vaultTotal: reserve + pools.reduce((s, p) => s + p.amount, 0), reserve, pools };
 }
 
 export interface SendContext {
@@ -202,7 +259,26 @@ export async function depositOnchain(ctx: SendContext, state: OnchainVaultState,
     amount: toBaseUnits(amountUsd),
     programAddress: state.programAddress,
   });
-  return send(ctx, [ix]);
+  // Split the deposit into the practice pools in the same transaction.
+  const sync = await buildSyncPoolsInstructions({
+    vaultAddress: state.vaultAddress,
+    vault: state.vault,
+    pools: state.pools,
+    programAddress: state.programAddress,
+  });
+  return send(ctx, [ix, ...sync]);
+}
+
+/** Pay the pools their interest and move each toward its strategy weight. Anyone can do this. */
+export async function syncPoolsOnchain(ctx: SendContext, state: OnchainVaultState) {
+  const ixs = await buildSyncPoolsInstructions({
+    vaultAddress: state.vaultAddress,
+    vault: state.vault,
+    pools: state.pools,
+    programAddress: state.programAddress,
+  });
+  if (ixs.length === 0) throw new Error("This vault has no practice pools yet.");
+  return send(ctx, ixs);
 }
 
 export async function withdrawOnchain(ctx: SendContext, state: OnchainVaultState, amountUsd: number) {
@@ -217,6 +293,7 @@ export async function withdrawOnchain(ctx: SendContext, state: OnchainVaultState
     amount: toBaseUnits(amountUsd),
     nowSeconds: BigInt(Math.floor(Date.now() / 1000)),
     programAddress: state.programAddress,
+    pools: state.pools,
   });
   return { signature: await send(ctx, plan.instructions), plan };
 }
@@ -231,6 +308,7 @@ export async function executeOnchain(ctx: SendContext, state: OnchainVaultState)
     ownerToken: associatedTokenAddress(ctx.owner, ctx.mint),
     position: state.position,
     programAddress: state.programAddress,
+    pools: state.pools,
   });
   return send(ctx, [ix]);
 }

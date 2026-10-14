@@ -9,6 +9,7 @@ import {
   depositOnchain,
   executeOnchain,
   loadVaults,
+  syncPoolsOnchain,
   onchainPortfolio,
   walletTokenBalance,
   strategyFromVault,
@@ -55,6 +56,8 @@ export interface VaultController {
   withdraw: (amount: number) => Promise<ActionResult>;
   execute: () => Promise<ActionResult>;
   cancel: () => Promise<ActionResult>;
+  /** On-chain with practice pools: collect interest and rebalance. */
+  sync?: () => Promise<ActionResult>;
   reset: () => void;
   refresh: () => void;
 }
@@ -234,6 +237,14 @@ function useOnchainVault(opportunities: readonly RatedOpportunity[]): VaultContr
       refresh();
       return { signature };
     },
+    sync:
+      active && active.pools.length > 0
+        ? async () => {
+            const signature = await syncPoolsOnchain(ctx(), active);
+            refresh();
+            return { signature };
+          }
+        : undefined,
     reset() {},
     refresh,
   };

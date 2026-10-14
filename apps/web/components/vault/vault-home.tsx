@@ -31,6 +31,7 @@ import { formatEarnings, formatPercent, formatUsd } from "@/lib/format";
 import { protocolLogoUrls } from "@/lib/logos";
 import { BlinkCard } from "./blink-card";
 import { EarningsChart } from "./earnings-chart";
+import { PoolsCard } from "./pools-card";
 import { useVault } from "./use-vault";
 import { PendingWithdrawalCard, StrategySummary, VaultModeBanner, allocationSegments } from "./vault-parts";
 
@@ -235,7 +236,9 @@ function Dashboard({ snapshot }: { snapshot: MarketSnapshot }) {
           </p>
         </div>
         <div className="bg-surface p-6">
-          <p className="text-[13px] text-fg-muted">Current estimated APY</p>
+          <p className="text-[13px] text-fg-muted">
+            {p.source === "onchain" && p.onchain && !p.undeployed ? "Earning now (practice rates)" : "Current estimated APY"}
+          </p>
           <p className="mt-2 flex items-center gap-2 text-[26px] font-semibold leading-none tracking-[-0.03em] tabular-nums">
             {formatPercent(p.apy)}
             <GradeBadge grade={p.grade} size="sm" />
@@ -243,10 +246,12 @@ function Dashboard({ snapshot }: { snapshot: MarketSnapshot }) {
         </div>
       </Card>
 
-      {p.undeployed && p.source === "onchain" ? (
+      {p.source === "onchain" && p.onchain ? (
+        <PoolsCard breakdown={p.onchain} busy={busy} onSync={vault.sync ? () => run(vault.sync!) : undefined} />
+      ) : p.source === "onchain" ? (
         <p className="rounded-2xl border border-line px-4 py-3 text-[13px] text-fg-muted">
-          Funds currently sit in the vault reserve. Allocation into protocols arrives with the allocator release; the APY
-          shown is the strategy&apos;s target, not what the reserve earns today.
+          This vault has no practice pools yet, so deposits stay in its reserve and the APY shown is the strategy&apos;s
+          target. Run the devnet workflow again to open them.
         </p>
       ) : null}
 
@@ -301,6 +306,15 @@ function Dashboard({ snapshot }: { snapshot: MarketSnapshot }) {
             </li>
           ))}
         </ul>
+        {p.source === "onchain" && p.onchain && !p.undeployed ? (
+          <p className="border-t border-line px-6 py-3 text-xs text-fg-muted">
+            Plus{" "}
+            <span className="tabular-nums text-fg">
+              {formatUsd(Math.max(0, p.balance - p.positions.reduce((sum, pos) => sum + pos.amount, 0)), { decimals: 2 })}
+            </span>{" "}
+            kept liquid in the vault reserve for withdrawals.
+          </p>
+        ) : null}
       </Card>
 
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-fg-subtle">

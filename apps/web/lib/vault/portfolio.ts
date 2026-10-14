@@ -48,8 +48,30 @@ export interface Portfolio {
   instantAvailable: number;
   limits: { largeWithdrawalThreshold: number; withdrawalTimelockSeconds: number; windowSeconds: number };
   hasDeposits: boolean;
-  /** On-chain only: funds still sit in the vault reserve (allocator not live yet). */
+  /** On-chain only: nothing has moved out of the vault reserve yet. */
   undeployed?: boolean;
+  /** On-chain only: the whole vault's money, by place (not just this position). */
+  onchain?: OnchainBreakdown;
+}
+
+export interface OnchainPool {
+  protocolId: ProtocolId;
+  name: string;
+  /** Held in this practice pool (USD). */
+  amount: number;
+  /** Fixed practice rate (decimal). */
+  apy: number;
+  /** Interest paid into the pool so far (USD). */
+  interestPaid: number;
+  /** Strategy weight (basis points). */
+  targetBps: number;
+}
+
+export interface OnchainBreakdown {
+  vaultTotal: number;
+  /** Kept liquid in the vault reserve for withdrawals (USD). */
+  reserve: number;
+  pools: OnchainPool[];
 }
 
 export function positionsFromBlend(blend: BlendedStrategy, balance: number): PortfolioPosition[] {

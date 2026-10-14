@@ -1,4 +1,4 @@
-import { buildDepositInstruction, toBaseUnits } from "@stablesave/client";
+import { buildDepositInstruction, buildSyncPoolsInstructions, toBaseUnits } from "@stablesave/client";
 import { toWeb3JsInstructions } from "@stablesave/client/web3js";
 import { RISK_PROFILES, RISK_PROFILE_IDS } from "@stablesave/core";
 import { address } from "@solana/kit";
@@ -111,8 +111,15 @@ export async function POST(request: Request) {
       amount: units,
       programAddress: state.programAddress,
     });
+    // Split the deposit into the practice pools in the same transaction.
+    const sync = await buildSyncPoolsInstructions({
+      vaultAddress: state.vaultAddress,
+      vault: state.vault,
+      pools: state.pools,
+      programAddress: state.programAddress,
+    });
     const connection = new Connection(env.rpcUrl, "confirmed");
-    const tx = new Transaction().add(...toWeb3JsInstructions([ix]));
+    const tx = new Transaction().add(...toWeb3JsInstructions([ix, ...sync]));
     tx.feePayer = account;
     tx.recentBlockhash = (await connection.getLatestBlockhash("confirmed")).blockhash;
 
