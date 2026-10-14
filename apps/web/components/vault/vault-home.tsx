@@ -29,6 +29,7 @@ import { ConnectButton } from "@/components/wallet/connect-button";
 import { useWalletDialog } from "@/components/wallet/wallet-providers";
 import { formatEarnings, formatPercent, formatUsd } from "@/lib/format";
 import { protocolLogoUrls } from "@/lib/logos";
+import { BlinkCard } from "./blink-card";
 import { EarningsChart } from "./earnings-chart";
 import { useVault } from "./use-vault";
 import { PendingWithdrawalCard, StrategySummary, VaultModeBanner, allocationSegments } from "./vault-parts";
@@ -45,6 +46,11 @@ export function VaultHome({ snapshot }: { snapshot: MarketSnapshot }) {
   return (
     <div className="mx-auto max-w-[880px] px-4 pt-10 sm:px-6 sm:pt-14">
       {showDashboard ? <Dashboard snapshot={snapshot} /> : <VaultIntro snapshot={snapshot} onPreview={() => setPreviewing(true)} />}
+      {showDashboard ? (
+        <div className="mt-6">
+          <BlinkCard />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -134,6 +140,8 @@ function VaultIntro({ snapshot, onPreview }: { snapshot: MarketSnapshot; onPrevi
           </div>
         ))}
       </section>
+
+      <BlinkCard />
 
       <p className="text-center text-xs leading-relaxed text-fg-subtle">
         The vault adds its own smart-contract risk on top of each protocol&apos;s. It isn&apos;t audited yet. Not a bank,
