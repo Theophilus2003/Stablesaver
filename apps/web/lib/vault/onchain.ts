@@ -15,6 +15,7 @@ import {
   fetchMaybeVault,
   fromBaseUnits,
   instantWithdrawalAllowance,
+  LIQUIDITY_BUFFER_BPS,
   summarizePosition,
   toBaseUnits,
   type PracticePoolRef,
@@ -152,41 +153,56 @@ export function onchainPortfolio(
   const { position, vault } = state;
   const summary = position ? summarizePosition(vault, position, state.reserveAmount) : null;
   const balance = summary ? fromBaseUnits(summary.totalAssets) : 0;
-  const blend = blendStrategy(strategyFromVault(state), opportunities, balance);
-  if (!blend) return null;
+  const strategy = strategyFromVault(state);
+  const blend = blendStrategy(strategy, opportunities, balance);
+  const onchain = breakdown(state);
+  // Market data only adds the grades. With practice pools the vault can still be shown from what's
+  // on-chain, so an outage of the market feed doesn't take the vault page down with it.
+  if (!blend && !onchain) return null;
   const allowance = position
     ? instantWithdrawalAllowance(vault, position, state.reserveAmount, nowSeconds, poolLiquidity(state.pools))
     : null;
-  const onchain = breakdown(state);
+  const deployed = onchain !== null && onchain.vaultTotal > 0 && vault.deployedAssets > 0n;
+  const gradeFor = (protocolId: string) => blend?.legs.find((l) => l.allocation.protocolId === protocolId)?.opportunity.safety.display ?? "—";
+  const totalWeight = onchain ? onchain.pools.reduce((sum, pool) => sum + pool.targetBps, 0) || 1 : 1;
   // With money in the pools, show this position's real share of each pool at its practice rate.
-  const positions: PortfolioPosition[] =
-    onchain && onchain.vaultTotal > 0 && vault.deployedAssets > 0n
-      ? onchain.pools.map((pool) => {
-          const leg = blend.legs.find((l) => l.allocation.protocolId === pool.protocolId);
-          return {
-            protocolId: pool.protocolId,
-            name: pool.name,
-            amount: (pool.amount * balance) / onchain.vaultTotal,
-            apy: pool.apy,
-            grade: leg?.opportunity.safety.display ?? "—",
-            weightBps: pool.targetBps,
-            marketName: "Practice pool",
-          };
-        })
-      : positionsFromBlend(blend, balance);
-  const practiceApy =
-    onchain && onchain.vaultTotal > 0 && vault.deployedAssets > 0n
-      ? onchain.pools.reduce((sum, pool) => sum + pool.amount * pool.apy, 0) / onchain.vaultTotal
-      : null;
+  const positions: PortfolioPosition[] = deployed
+    ? onchain.pools.map((pool) => ({
+        protocolId: pool.protocolId,
+        name: pool.name,
+        amount: (pool.amount * balance) / onchain.vaultTotal,
+        apy: pool.apy,
+        grade: gradeFor(pool.protocolId),
+        weightBps: pool.targetBps,
+        marketName: "Practice pool",
+      }))
+    : blend
+      ? positionsFromBlend(blend, balance)
+      : onchain!.pools.map((pool) => ({
+          protocolId: pool.protocolId,
+          name: pool.name,
+          amount: (balance * pool.targetBps) / totalWeight,
+          apy: pool.apy,
+          grade: "—",
+          weightBps: pool.targetBps,
+          marketName: "Practice pool",
+        }));
+  const practiceApy = deployed
+    ? onchain.pools.reduce((sum, pool) => sum + pool.amount * pool.apy, 0) / onchain.vaultTotal
+    : null;
+  // Nothing deployed and no market data: the pools' practice rates, less the share kept liquid.
+  const targetPracticeApy = onchain
+    ? (onchain.pools.reduce((sum, pool) => sum + pool.apy * pool.targetBps, 0) / totalWeight) * (1 - LIQUIDITY_BUFFER_BPS / 10_000)
+    : 0;
 
   return {
     source: "onchain",
     profile: state.profile,
     balance,
     earned: summary ? signedUsd(summary.earned) : 0,
-    apy: practiceApy ?? blend.apy,
-    grade: blend.safety.display,
-    allocations: blend.strategy.allocations,
+    apy: practiceApy ?? blend?.apy ?? targetPracticeApy,
+    grade: blend?.safety.display ?? "—",
+    allocations: blend?.strategy.allocations ?? strategy.allocations,
     positions,
     history: [],
     pending:

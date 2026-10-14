@@ -137,9 +137,11 @@ export function selectStablePools(
         }
         return true;
       })
-      .sort((a, b) => b.tvlUsd - a.tvlUsd)
-      .slice(0, maxPerAsset);
-    out.push(...matches.map((pool) => ({ pool, asset })));
+      .sort((a, b) => b.tvlUsd - a.tvlUsd);
+    // The vault prices its strategy from these protocols' Solana pools, so keep them even when
+    // bigger pools on other networks fill the top N.
+    const vaultPools = matches.slice(maxPerAsset).filter((p) => p.chain.toLowerCase() === "solana" && PROJECT_TO_VAULT_PROTOCOL.has(p.project));
+    out.push(...[...matches.slice(0, maxPerAsset), ...vaultPools].map((pool) => ({ pool, asset })));
   }
   return out;
 }

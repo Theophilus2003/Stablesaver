@@ -59,6 +59,12 @@ export function DepositFlow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [profile, snapshot.opportunities, amount, vault.availableProfiles.join()],
   );
+  // Without market data for the vault's protocols, the review still shows the on-chain split;
+  // only the estimate and the grade need market data.
+  const allocations = blend?.strategy.allocations ?? vault.strategyFor(profile).allocations;
+  const legs = blend
+    ? blend.legs.map((leg) => ({ protocolId: leg.allocation.protocolId, weightBps: leg.allocation.weightBps, amount: leg.amount }))
+    : allocations.map((a) => ({ protocolId: a.protocolId, weightBps: a.weightBps, amount: (amount * a.weightBps) / 10_000 }));
   const limits = vault.limits;
   const balance = vault.walletBalance;
   const overBalance = !simulated && balance !== null && amount > balance;
@@ -223,33 +229,33 @@ export function DepositFlow({
               </div>
             ) : null}
 
-            {step === 3 && blend ? (
+            {step === 3 && (blend || !simulated) ? (
               <div>
                 <dl className="flex flex-col divide-y divide-line">
                   <ReviewRow label="Deposit">{formatUsd(amount, { decimals: amount % 1 ? 2 : 0 })}</ReviewRow>
-                  <ReviewRow label="Estimated APY">
-                    <AnimatedNumber value={blend.apy * 100} format={(v) => `${v.toFixed(2)}%`} />
+                  <ReviewRow label="Estimated APY" hint={blend ? undefined : "Market data unavailable"}>
+                    {blend ? <AnimatedNumber value={blend.apy * 100} format={(v) => `${v.toFixed(2)}%`} /> : "—"}
                   </ReviewRow>
                   <ReviewRow label="Estimated yearly earnings" hint="After fees">
-                    <span className="text-positive">{formatEarnings(blend.estimate.netEarnings)}</span>
+                    {blend ? <span className="text-positive">{formatEarnings(blend.estimate.netEarnings)}</span> : "—"}
                   </ReviewRow>
                   <ReviewRow label="Safety grade" hint="Includes the vault's own contract risk">
-                    <GradeBadge grade={blend.safety.display} size="sm" />
+                    {blend ? <GradeBadge grade={blend.safety.display} size="sm" /> : "—"}
                   </ReviewRow>
                   <div className="py-4">
                     <dt className="text-sm text-fg-muted">Allocation</dt>
                     <dd className="mt-3 flex flex-col gap-2">
-                      {blend.legs.map((leg) => (
-                        <div key={leg.allocation.protocolId} className="flex items-center justify-between text-sm">
-                          <span>{PROTOCOLS[leg.allocation.protocolId].name}</span>
+                      {legs.map((leg) => (
+                        <div key={leg.protocolId} className="flex items-center justify-between text-sm">
+                          <span>{PROTOCOLS[leg.protocolId].name}</span>
                           <span className="tabular-nums text-fg-muted">
-                            {formatBpsAsPercent(leg.allocation.weightBps)}
+                            {formatBpsAsPercent(leg.weightBps)}
                             <span className="ml-2 text-fg-subtle">{formatUsd(leg.amount, { decimals: 0 })}</span>
                           </span>
                         </div>
                       ))}
-                      <AllocationBar segments={allocationSegments(blend.strategy.allocations)} height={6} className="mt-1" />
-                      {blend.strategy.source === "example" ? (
+                      <AllocationBar segments={allocationSegments(allocations)} height={6} className="mt-1" />
+                      {blend?.strategy.source === "example" ? (
                         <p className="text-[11px] text-fg-subtle">Example allocation for development. Not a recommendation.</p>
                       ) : null}
                     </dd>

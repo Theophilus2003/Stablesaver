@@ -241,7 +241,7 @@ function Dashboard({ snapshot }: { snapshot: MarketSnapshot }) {
           </p>
           <p className="mt-2 flex items-center gap-2 text-[26px] font-semibold leading-none tracking-[-0.03em] tabular-nums">
             {formatPercent(p.apy)}
-            <GradeBadge grade={p.grade} size="sm" />
+            {p.grade !== "—" ? <GradeBadge grade={p.grade} size="sm" /> : null}
           </p>
         </div>
       </Card>
@@ -302,7 +302,7 @@ function Dashboard({ snapshot }: { snapshot: MarketSnapshot }) {
                 <p className="text-[15px] font-medium tabular-nums">{amountsById[pos.protocolId]}</p>
                 <p className="text-[13px] tabular-nums text-fg-muted">{formatPercent(pos.apy, 1)} APY</p>
               </div>
-              <GradeBadge grade={pos.grade} className="ml-1" />
+              {pos.grade !== "—" ? <GradeBadge grade={pos.grade} className="ml-1" /> : null}
             </li>
           ))}
         </ul>

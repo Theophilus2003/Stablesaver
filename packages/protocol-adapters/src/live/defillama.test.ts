@@ -105,6 +105,16 @@ describe("DefiLlamaMarketsProvider", () => {
     expect(new Set(opps.map((o) => o.id)).size).toBe(opps.length);
   });
 
+  it("keeps the vault protocols' Solana pools when bigger pools elsewhere fill the list", async () => {
+    const small = new DefiLlamaMarketsProvider({ client: new DefiLlamaClient({ fetch: mockFetch() as unknown as FetchLike }), maxPerAsset: 2 });
+    const pools = (await small.listOpportunities()).map((o) => o.provenance.sourceUrl!.split("/").pop());
+    // Top 2 USDC by TVL are Kamino Main and Arbitrum Aave; the other Kamino, MarginFi, Drift and
+    // Save USDC pools stay, Base Morpho and Hyperliquid don't.
+    expect(pools).toEqual(expect.arrayContaining(["kmn-usdc-main", "aave-arb-usdc", "mfi-usdc", "drift-usdc", "kmn-usdc-jlp", "save-usdc"]));
+    expect(pools).not.toContain("morpho-base-usdc");
+    expect(pools).not.toContain("hl-usdc");
+  });
+
   it("maps the vault protocols to their ids and keeps everyone else's DefiLlama slug", async () => {
     const opps = await provider().listOpportunities();
     const kamino = byPool(opps, "kmn-usdc-main");
