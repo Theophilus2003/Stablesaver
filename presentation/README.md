@@ -7,15 +7,47 @@
 
 | File | What it is |
 | --- | --- |
-| `StableSave-Demo-Day.pptx` | The editable deck: 18 slides, 16:9, with speaker notes on every slide |
-| `StableSave-Demo-Day.pdf` | The same deck as a PDF with all three fonts embedded (use it as the backup) |
+| `StableSave-Demo-Day-5min.pptx` | **Present this one in a 5-minute slot.** 6 slides, about 1¾ minutes of talking plus a 3-minute demo, with a word-for-word script in the speaker notes |
+| `StableSave-Demo-Day-5min.pdf` | The same 6 slides as a PDF with the fonts embedded (backup) |
+| `StableSave-Demo-Day.pptx` | The full deck: 18 slides, about 8½ minutes plus demo. Keep it open for questions: it has a slide on every detail |
+| `StableSave-Demo-Day.pdf` | The full deck as a PDF with all three fonts embedded |
 | `assets/fonts/` | Anton, Archivo and IBM Plex Mono (free, SIL Open Font License). **Install them before opening the PPTX** |
 | `assets/screens/` | Screenshots of the real StableSave interface used in the deck |
 | `assets/graphics/` | Logo, QR code, cover collage, stickers and the star bullet (all original) |
-| `assets/previews/` | One image per slide, for a quick look without opening the deck |
-| `build/` | The scripts that generate the artwork and the deck; speaker notes are in `build/notes.json` |
+| `assets/previews-5min/`, `assets/previews/` | One image per slide (5-minute and full deck), for a quick look without opening either |
+| `build/` | The scripts that generate the artwork and both decks; speaker notes are in `build/notes-5min.json` and `build/notes.json` |
 
 Source of truth: *StableSave — Project Review Guide*. Technical details were also checked against the code.
+
+## 5-minute version (slides + demo)
+
+| Clock | Slide | Say |
+| --- | --- | --- |
+| 0:00 | 1 · StableSave | Who you are; two parts: a live comparison app and a devnet vault prototype |
+| 0:10 | 2 · Yield is easy to find | Options are scattered, a higher APY often means more risk, fees eat small deposits |
+| 0:35 | 3 · Rate, risk, real return | A–D grade where the weakest factor counts; what you keep after fees; you never hand over your money |
+| 1:10 | 4 · The Solana vault | The program enforces the rules: split on deposit, withdrawal limits, pause. Devnet, test tokens, not audited |
+| 1:35 | 5 · Let's see it work | Switch to the browser for the demo below |
+| 4:35 | 6 · Thank you! | What's next, the QR code, thank you |
+
+**Demo (3 minutes)**
+
+- **Before the talk:**
+  - Tab 1 is the site with the calculator showing.
+  - Tab 2 is `/vault` with the wallet connected. The wallet is on Devnet with test USDC and a little devnet SOL.
+  - Make one deposit beforehand, so the pools card already shows money.
+  - Copy a mainnet wallet address that holds USDC, for the idle-money scan.
+- **A · live (1½ min):**
+  1. Type 1,000 and switch risk levels.
+  2. Open the top option: show its grade and *Can I withdraw today?*
+  3. Use *Find idle money* on the copied address.
+- **B · devnet (1½ min):**
+  1. Deposit 100 test USDC and approve it.
+  2. While it confirms, point at *Where the vault's money is* (20% liquid, the rest in pools).
+  3. Only if you're under 2:30: *Try it* on the Blink card and deposit 10.
+- **If a transaction is slow,** keep talking over the pools card and move on. Never wait in silence.
+
+The speaker notes have the exact words for each slide and step, plus short answers to likely questions.
 
 ## The look
 
@@ -115,6 +147,7 @@ cd presentation/build
 npm install
 npm run brand      # logo files for the site, docs and deck (apps/web/public/brand)
 npm run deck       # artwork (blobs, stickers, cover collage) and ../StableSave-Demo-Day.pptx
+npm run deck:5min  # the 6-slide version, ../StableSave-Demo-Day-5min.pptx
 ```
 
 `art.js` draws the artwork; `node art.js <folder>` writes previews of it. Speaker notes live in `notes.json`.

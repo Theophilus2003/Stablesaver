@@ -5,6 +5,7 @@
   "scripts": {
     "graphics": "node make-graphics.js",
     "deck": "node build-deck.js",
+    "deck:5min": "node build-deck.js 5min",
     "brand": "node make-brand.js"
   },
   "dependencies": {

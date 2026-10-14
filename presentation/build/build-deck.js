@@ -1,6 +1,8 @@
 // StableSave demo day deck, in a scrapbook "class notes" style: charcoal background, Anton
 // headings on green paint blobs, IBM Plex Mono labels, Archivo text, tilted cards and stickers.
 // Run from this folder: npm install, then npm run deck. Speaker notes live in notes.json.
+// `node build-deck.js 5min` builds the 6-slide version for a 5-minute slot with a live demo
+// (StableSave-Demo-Day-5min.pptx, notes in notes-5min.json); the full deck stays the backup.
 // Facts come from "StableSave — Project Review Guide" and the StableSave code. Screenshots are of
 // the real interface from a local build with demo data; every slide that shows one says so.
 const path = require("path");
@@ -15,8 +17,9 @@ const art = require("./art");
 
 const ROOT = path.join(__dirname, "..");
 const ASSET = (...p) => path.join(ROOT, "assets", ...p);
-const OUT = path.join(ROOT, "StableSave-Demo-Day.pptx");
-const NOTES = JSON.parse(fs.readFileSync(path.join(__dirname, "notes.json"), "utf8"));
+const SHORT = process.argv[2] === "5min";
+const OUT = path.join(ROOT, SHORT ? "StableSave-Demo-Day-5min.pptx" : "StableSave-Demo-Day.pptx");
+const NOTES = JSON.parse(fs.readFileSync(path.join(__dirname, SHORT ? "notes-5min.json" : "notes.json"), "utf8"));
 
 const HEX = {
   bg: "1C1C1C",
@@ -88,7 +91,7 @@ const H = 7.5;
 const X0 = 0.75;
 const CW = W - 2 * X0; // 11.833
 const TOP = 2.55; // content starts under the blob title and its subtitle
-const TOTAL = 18;
+const TOTAL = SHORT ? 6 : 18;
 let page = 0;
 
 /* ---------------------------------------------------------------- helpers */
@@ -356,21 +359,28 @@ async function main() {
     const RX = X0 + 5.35;
     const RW = CW - 5.35;
     label(s, "What you take on", { x: RX, y: TOP + 0.02, w: RW, color: YELLOW });
-    const items = [
-      "**Scattered**: options sit across many protocols and networks",
-      "**Higher isn't better**: a higher APY can mean more risk, not a better deal",
-      "**Fees bite**: network fees can wipe out the return on a small deposit",
-      "**Hard to compare**: security, liquidity, maturity and strategy complexity hide in docs",
-      "**No framework**: beginners have no clear way to weigh any of it",
-    ];
-    bullets(s, items, { x: RX, y: TOP + 0.45, w: RW, rowH: 0.62, fontSize: 15, gap: 0.12 });
-    items.slice(0, -1).forEach((_, i) => dashed(s, { x: RX + 0.32, y: TOP + 0.45 + (i + 1) * 0.74 - 0.08, w: RW - 0.32 }));
+    const items = SHORT
+      ? [
+          "**Scattered**: options sit across many protocols and networks",
+          "**Higher isn't better**: a higher APY often just means more risk",
+          "**Fees bite**: network fees can wipe out the return on a small deposit",
+        ]
+      : [
+          "**Scattered**: options sit across many protocols and networks",
+          "**Higher isn't better**: a higher APY can mean more risk, not a better deal",
+          "**Fees bite**: network fees can wipe out the return on a small deposit",
+          "**Hard to compare**: security, liquidity, maturity and strategy complexity hide in docs",
+          "**No framework**: beginners have no clear way to weigh any of it",
+        ];
+    const row = SHORT ? { rowH: 0.8, gap: 0.3, fontSize: 18 } : { rowH: 0.62, gap: 0.12, fontSize: 15 };
+    bullets(s, items, { x: RX, y: TOP + 0.45, w: RW, ...row });
+    items.slice(0, -1).forEach((_, i) => dashed(s, { x: RX + 0.32, y: TOP + 0.45 + (i + 1) * (row.rowH + row.gap) - row.gap / 2 - 0.02, w: RW - 0.32 }));
     pageNumber(s);
     s.addNotes(NOTES.problem);
   }
 
   /* ---------- 3. Agenda ---------- */
-  {
+  if (!SHORT) {
     const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Opening" });
     await title(s, "AGENDA", null, 12);
     const rows = [
@@ -395,15 +405,15 @@ async function main() {
   }
 
   /* ---------- 4. Chapter 01 ---------- */
-  pres.addSection({ title: "Comparison app" });
-  await divider(1, "THE COMPARISON APP", "Live today: compare yield, risk and **what you keep after fees**.", [
+  if (!SHORT) pres.addSection({ title: "Comparison app" });
+  if (!SHORT) await divider(1, "THE COMPARISON APP", "Live today: compare yield, risk and **what you keep after fees**.", [
     { name: "sprout", x: 10.75, y: 0.95, w: 1.3, rotate: 14 },
     { name: "coin", x: 1.2, y: 4.55, w: 1.45, rotate: -12 },
     { name: "sparkle", x: 10.9, y: 5.35, w: 0.95, rotate: 0 },
   ], NOTES.chapter1, "Comparison app");
 
   /* ---------- 5. Solution ---------- */
-  {
+  if (!SHORT) {
     const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Comparison app" });
     await title(s, "ONE PLACE TO COMPARE", "Yield, risk and **what you keep after fees**, side by side.", 13);
     const f = screenshot(s, "01-home-hero", { x: X0 + 0.1, y: TOP - 0.05, w: 3.0, h: 3.85 }, { alt: "StableSave home screen: amount entry, estimated yearly earnings, and the risk preference selector", name: "shot-home", rotate: -2 });
@@ -436,7 +446,7 @@ async function main() {
   }
 
   /* ---------- 6. Walkthrough ---------- */
-  {
+  if (!SHORT) {
     const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Comparison app" });
     await title(s, "FROM BALANCE TO DECISION", "In a few clicks: **ranked, graded and after fees**.", 14);
     const boxY = TOP - 0.05;
@@ -477,7 +487,7 @@ async function main() {
   }
 
   /* ---------- 7. Risk engine ---------- */
-  {
+  if (!SHORT) {
     const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Comparison app" });
     await title(s, "HOW THE GRADE WORKS", "A high APY should never tell the whole story: **the weakest factor always counts**.", 15);
     const factors = [
@@ -538,7 +548,7 @@ async function main() {
   }
 
   /* ---------- 8. Net earnings ---------- */
-  {
+  if (!SHORT) {
     const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Comparison app" });
     await title(s, "THE RETURN AFTER COSTS", "On a small deposit, **fees can cost more than you earn**.", 16);
     const f = screenshot(s, "05-fees-ethereum-100", { x: X0 + 0.05, y: TOP + 0.05, w: 6.55, h: 2.2 }, { alt: "Filtered to Ethereum with $100: Aave V3 at 4.10% shows minus $7.90 a year and the note 'Fees cost more than you'd earn'", name: "shot-fees", rotate: -1.2 });
@@ -573,7 +583,7 @@ async function main() {
   }
 
   /* ---------- 9. New in the comparison app ---------- */
-  {
+  if (!SHORT) {
     const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Comparison app" });
     await title(s, "FOUR MORE QUESTIONS", "Answered **before you deposit**.", 17);
     const gap = 0.3;
@@ -617,15 +627,15 @@ async function main() {
   }
 
   /* ---------- 10. Chapter 02 ---------- */
-  pres.addSection({ title: "Solana vault" });
-  await divider(2, "THE SOLANA VAULT", "A separate **devnet prototype**: the program enforces the rules.", [
+  if (!SHORT) pres.addSection({ title: "Solana vault" });
+  if (!SHORT) await divider(2, "THE SOLANA VAULT", "A separate **devnet prototype**: the program enforces the rules.", [
     { name: "vault", x: 10.7, y: 1.0, w: 1.35, rotate: 10 },
     { name: "shield", x: 1.25, y: 4.6, w: 1.3, rotate: -10 },
     { name: "bolt", x: 11.0, y: 5.35, w: 0.95, rotate: 8 },
   ], NOTES.chapter2, "Solana vault");
 
   /* ---------- 11. Solana engineering ---------- */
-  {
+  if (!SHORT) {
     const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Solana vault" });
     await title(s, "THE VAULT PROGRAM", "A separate Anchor prototype on devnet: **the program enforces the rules**.", 18);
     const y0 = TOP;
@@ -682,7 +692,7 @@ async function main() {
   }
 
   /* ---------- 12. Practice pools and the Blink ---------- */
-  {
+  if (!SHORT) {
     const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Solana vault" });
     await title(s, "EVERY DEPOSIT, SPLIT", "Into practice pools by strategy, **and a test proves it** on every change.", 19);
     const LW = 6.6;
@@ -732,7 +742,7 @@ async function main() {
   }
 
   /* ---------- 13. Safety controls ---------- */
-  {
+  if (!SHORT) {
     const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Solana vault" });
     await title(s, "SECURITY IS TRADE-OFFS", "Not a badge: **each control buys safety at a cost**.", 20);
     const controls = [
@@ -768,41 +778,107 @@ async function main() {
   }
 
   /* ---------- 14. Chapter 03 ---------- */
-  pres.addSection({ title: "Demo and roadmap" });
-  await divider(3, "DEMO & WHAT'S NEXT", "What works today, **what's missing**, and what I build next.", [
+  if (!SHORT) pres.addSection({ title: "Demo and roadmap" });
+  if (!SHORT) await divider(3, "DEMO & WHAT'S NEXT", "What works today, **what's missing**, and what I build next.", [
     { name: "chart", x: 10.75, y: 0.95, w: 1.3, rotate: -8 },
     { name: "piggy", x: 1.15, y: 4.5, w: 1.5, rotate: 8 },
     { name: "sparkle", x: 11.0, y: 5.35, w: 0.95, rotate: 0 },
   ], NOTES.chapter3, "Demo and roadmap");
 
+  /* ---------- 5-minute version: what it shows ---------- */
+  if (SHORT) {
+    pres.addSection({ title: "StableSave" });
+    const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "StableSave" });
+    await title(s, "RATE, RISK, REAL RETURN", "Every option shows the rate, **an A–D risk grade** and **what you keep after fees**.", 13);
+    const f = screenshot(s, "02-options-list", { x: X0 + 0.15, y: TOP - 0.02, w: 5.2, h: 3.75 }, {
+      alt: "Ranked options for $1,000 of USDC: each with its grade, network, deposits, rate and yearly estimate",
+      name: "shot-list", rotate: -1.5,
+    });
+    mono(s, "REAL INTERFACE · LOCAL BUILD, DEMO DATA", { x: X0, y: f.y + f.h + 0.22, w: 5.5, h: 0.25, fontSize: 8.5, color: "7A7A7A", align: "center", charSpacing: 1.5 });
+
+    const RX = X0 + 5.95;
+    const RW = CW - 5.95;
+    const rows = [
+      { head: "Risk grade", color: GREEN, big: "A–D", bigColor: GREEN, body: "Nine factors, and **the weakest one always counts**." },
+      { head: "After fees · $100 on Ethereum", color: YELLOW, big: "−$7.90", bigColor: HEX.red, body: "**Fees cost more than you'd earn**, and the app says so." },
+      { head: "Held by StableSave", color: PURPLE, big: "$0", bigColor: PURPLE, body: "No sign-up to compare. **You deposit on the protocol's own app.**" },
+    ];
+    const rh = 1.25;
+    const rg = 0.22;
+    rows.forEach((r, i) => {
+      const y = TOP + i * (rh + rg);
+      card(s, { x: RX, y, w: RW, h: rh, shadow: true, name: `answer-${i}` });
+      text(s, r.big, { x: RX + 0.3, y: y + 0.12, w: 1.6, h: rh - 0.24, fontFace: DISPLAY, fontSize: 38, color: r.bigColor, valign: "middle" });
+      label(s, r.head, { x: RX + 2.0, y: y + 0.24, w: RW - 2.25, color: r.color, size: 9.5 });
+      text(s, rich(r.body), { x: RX + 2.0, y: y + 0.52, w: RW - 2.25, h: 0.6, fontSize: 15, lineSpacingMultiple: 1.0 });
+    });
+    pageNumber(s);
+    s.addNotes(NOTES.answers);
+  }
+
+  /* ---------- 5-minute version: the vault ---------- */
+  if (SHORT) {
+    const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "StableSave" });
+    await title(s, "THE SOLANA VAULT", "A separate devnet prototype: **the program itself enforces the rules**.", 22);
+    const LW = 6.1;
+    const fp = screenshot(s, "12-vault-pools", { x: X0 + 0.05, y: TOP + 0.15, w: LW - 0.1, h: 3.2 }, {
+      alt: "Where the vault's money is: $100.00 in total; $20.00 kept liquid for withdrawals; Kamino practice pool $36.00; MarginFi $24.00; Save $20.00",
+      name: "shot-pools", rotate: -1.2,
+    });
+    tape(s, "DEVNET · TEST TOKENS", { x: fp.x + fp.w - 2.35, y: fp.y - 0.3, w: 2.45, h: 0.34, rotate: 3, color: PURPLE, fontSize: 9 });
+    mono(s, "REAL INTERFACE · THE SPLIT FROM THE CI REHEARSAL", { x: X0, y: fp.y + fp.h + 0.2, w: LW, h: 0.25, fontSize: 8.5, color: "7A7A7A", align: "center", charSpacing: 1.5 });
+
+    const RX = X0 + LW + 0.5;
+    const RW = CW - LW - 0.5;
+    label(s, "Enforced on-chain", { x: RX, y: TOP + 0.02, w: RW });
+    bullets(s, [
+      "**Split on deposit**: 20% kept liquid, the rest across practice pools by strategy",
+      "**Withdrawal limits**: 2,000 a wallet a day at once; bigger exits wait 30 minutes",
+      "**Safety switch**: a guardian can pause; only the authority unpauses",
+      "**Deposit from a link**: the same deposit as a Solana Blink",
+    ], { x: RX, y: TOP + 0.45, w: RW, rowH: 0.62, gap: 0.16, fontSize: 14.5 });
+    callout(s, [
+      { text: "Not yet: ", options: { bold: true, color: ORANGE } },
+      { text: "market yield (practice pools pay fixed practice rates) · an audit · a multisig", options: { color: INK } },
+    ], { x: X0, y: TOP + 3.85, w: CW, h: 0.48, tone: "orange", fontSize: 10.5 });
+    pageNumber(s);
+    s.addNotes(NOTES.vault);
+  }
+
   /* ---------- 15. Live demo ---------- */
+  if (SHORT) pres.addSection({ title: "Demo" });
   {
-    const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Demo and roadmap" });
+    const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: SHORT ? "Demo" : "Demo and roadmap" });
     await title(s, "LET'S SEE IT WORK", "Part A is **live**. Part B is a **devnet prototype**. Keep them separate.", 21);
     const colW = (CW - 0.35) / 2;
     const parts = [
       {
-        tag: "A · LIVE", color: GREEN, title: "Comparison app", url: "stablesaver-web.vercel.app", shot: "01-home-hero",
+        tag: SHORT ? "A · LIVE · 1½ MIN" : "A · LIVE", color: GREEN, title: "Comparison app", url: "stablesaver-web.vercel.app", shot: "01-home-hero",
         alt: "Comparison app home: amount, estimated earnings and risk preference",
-        steps: ["Find idle money in a wallet", "Switch Safe / Balanced / Bigger", "Open an option: grade, withdraw", "Compare with US T-bills", "$100 + Ethereum: fees win", "Share my estimate"],
+        steps: SHORT
+          ? ["Type 1,000, then switch risk levels", "Open the top option: its grade, and can I withdraw today?", "Find idle money in a pasted wallet"]
+          : ["Find idle money in a wallet", "Switch Safe / Balanced / Bigger", "Open an option: grade, withdraw", "Compare with US T-bills", "$100 + Ethereum: fees win", "Share my estimate"],
       },
       {
-        tag: "B · DEVNET PROTOTYPE", color: PURPLE, title: "Vault", url: "Wallet on Solana devnet", shot: "06-vault-withdraw",
+        tag: SHORT ? "B · DEVNET · 1½ MIN" : "B · DEVNET PROTOTYPE", color: PURPLE, title: "Vault", url: "Wallet on Solana devnet", shot: "06-vault-withdraw",
         alt: "Vault withdraw screen: 2,000 now, the rest after a 30-minute timelock",
-        steps: ["Connect a devnet wallet", "Deposit: split into pools", "Where the money is", "Collect interest, rebalance", "Withdraw: pools top up", "Deposit from a Blink"],
+        steps: SHORT
+          ? ["Deposit 100 test USDC", "See the split: 20% liquid, the rest in pools", "If there's time: deposit again from the Blink"]
+          : ["Connect a devnet wallet", "Deposit: split into pools", "Where the money is", "Collect interest, rebalance", "Withdraw: pools top up", "Deposit from a Blink"],
       },
     ];
     const ch = 3.75;
     parts.forEach((p, i) => {
       const x = X0 + i * (colW + 0.35);
       card(s, { x, y: TOP + 0.05, w: colW, h: ch, name: `demo-${i}` });
-      tape(s, p.tag, { x: x + 0.2, y: TOP - 0.1, w: i === 0 ? 1.35 : 2.6, h: 0.34, color: p.color, rotate: i === 0 ? -3 : 2, fontSize: 9 });
+      tape(s, p.tag, { x: x + 0.2, y: TOP - 0.1, w: SHORT ? 2.45 : i === 0 ? 1.35 : 2.6, h: 0.34, color: p.color, rotate: i === 0 ? -3 : 2, fontSize: 9 });
       text(s, p.title, { x: x + 0.3, y: TOP + 0.42, w: 3.3, h: 0.38, fontSize: 19, bold: true });
       mono(s, p.url, { x: x + 0.3, y: TOP + 0.82, w: 3.3, h: 0.24, fontSize: 9.5, color: p.color, charSpacing: 0.5 });
+      const step = SHORT ? { gap: 0.78, h: 0.62, fontSize: 14 } : { gap: 0.42, h: 0.34, fontSize: 12.5 };
       p.steps.forEach((st, k) => {
-        const y = TOP + 1.22 + k * 0.42;
+        const y = TOP + 1.22 + k * step.gap;
         mono(s, `0${k + 1}`, { x: x + 0.3, y: y + 0.04, w: 0.42, h: 0.26, fontFace: MONO_SEMI, fontSize: 10.5, color: p.color, charSpacing: 0.5 });
-        text(s, st, { x: x + 0.75, y, w: 2.85, h: 0.34, fontSize: 12.5, valign: "middle" });
+        text(s, st, { x: x + 0.75, y, w: 2.85, h: step.h, fontSize: step.fontSize, valign: SHORT ? "top" : "middle" });
       });
       const sh = shots[p.shot];
       const f = fit(sh.px, { x: x + 3.7, y: TOP + 0.3, w: colW - 3.95, h: ch - 0.5 });
@@ -818,7 +894,7 @@ async function main() {
   }
 
   /* ---------- 16. Status ---------- */
-  {
+  if (!SHORT) {
     const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Demo and roadmap" });
     await title(s, "LIVE, DEVNET, NOT YET", "What's real, what's experimental, and **what's missing**.", 22);
     const cols = [
@@ -853,7 +929,7 @@ async function main() {
   }
 
   /* ---------- 17. Roadmap ---------- */
-  {
+  if (!SHORT) {
     const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Demo and roadmap" });
     await title(s, "WHAT COMES NEXT", "Safety first, then **the feature that makes the vault real**.", 23);
     const phases = [
@@ -899,7 +975,10 @@ async function main() {
     s.addShape(S.roundRect, { ...q, rectRadius: 0.16, rotate: 3, fill: { color: "FFFFFF" }, line: { color: "FFFFFF", width: 0 }, shadow: hardShadow(), objectName: "qr-card" });
     s.addImage({ path: qr, x: q.x + 0.18, y: q.y + 0.18, w: q.w - 0.36, h: q.h - 0.36, rotate: 3, altText: "QR code linking to stablesaver-web.vercel.app" });
     mono(s, "SCAN TO TRY IT  ·  STABLESAVER-WEB.VERCEL.APP", { x: 0, y: 6.2, w: W, h: 0.28, fontFace: MONO_SEMI, fontSize: 11, color: GREEN, align: "center", charSpacing: 2.5 });
-    text(s, "Feedback welcome on risk scoring, vault security, and which integration to build next.", { x: 2.5, y: 6.52, w: W - 5, h: 0.3, fontSize: 12.5, color: MUTED, align: "center" });
+    const closing = SHORT
+      ? "Next: a real Kamino strategy in the vault, then an audit and a multisig."
+      : "Feedback welcome on risk scoring, vault security, and which integration to build next.";
+    text(s, closing, { x: 2.5, y: 6.52, w: W - 5, h: 0.3, fontSize: 12.5, color: MUTED, align: "center" });
     sticker(s, "coin", { x: 1.6, y: 3.9, w: 1.6, rotate: -14 });
     sticker(s, "sprout", { x: 2.3, y: 0.9, w: 1.15, rotate: 10 });
     sticker(s, "piggy", { x: 10.2, y: 4.0, w: 1.7, rotate: 8 });
