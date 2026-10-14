@@ -691,7 +691,7 @@ async function main() {
       name: "shot-pools", rotate: -1.2,
     });
     const fb = screenshot(s, "13-blink", { x: X0 + 0.05, y: fp.y + fp.h + 0.3, w: LW - 0.1, h: 0.82 }, {
-      alt: "Deposit from a link: a Solana Blink anyone with test USDC can use from a post or a QR code. Copy link, Open Blink",
+      alt: "Deposit from a link: a Solana Blink anyone with test USDC can use from a post or a QR code. Copy link, Try it",
       name: "shot-blink", rotate: 1,
     });
     mono(s, "REAL INTERFACE · POOLS CARD SHOWS THE REHEARSAL'S SPLIT", { x: X0, y: fb.y + fb.h + 0.18, w: LW, h: 0.25, fontSize: 8.5, color: "7A7A7A", charSpacing: 1.5 });

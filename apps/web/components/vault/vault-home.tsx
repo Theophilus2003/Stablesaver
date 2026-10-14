@@ -29,6 +29,7 @@ import { ConnectButton } from "@/components/wallet/connect-button";
 import { useWalletDialog } from "@/components/wallet/wallet-providers";
 import { formatEarnings, formatPercent, formatUsd } from "@/lib/format";
 import { protocolLogoUrls } from "@/lib/logos";
+import { describeTxError } from "@/lib/vault/onchain";
 import { BlinkCard } from "./blink-card";
 import { EarningsChart } from "./earnings-chart";
 import { PoolsCard } from "./pools-card";
@@ -157,6 +158,7 @@ function Dashboard({ snapshot }: { snapshot: MarketSnapshot }) {
   const env = useEnvironment();
   const { connected } = useWallet();
   const [busy, setBusy] = React.useState(false);
+  const [actionError, setActionError] = React.useState<string | null>(null);
   const p = vault.portfolio;
 
   if (!vault.ready) return <DashboardSkeleton />;
@@ -175,8 +177,11 @@ function Dashboard({ snapshot }: { snapshot: MarketSnapshot }) {
 
   async function run(action: () => Promise<unknown>) {
     setBusy(true);
+    setActionError(null);
     try {
       await action();
+    } catch (error) {
+      setActionError(describeTxError(error));
     } finally {
       setBusy(false);
     }
@@ -245,6 +250,12 @@ function Dashboard({ snapshot }: { snapshot: MarketSnapshot }) {
           </p>
         </div>
       </Card>
+
+      {actionError ? (
+        <p role="alert" className="rounded-2xl border border-danger/25 bg-danger/[0.06] px-4 py-3 text-[13px] leading-relaxed text-danger">
+          {actionError}
+        </p>
+      ) : null}
 
       {p.source === "onchain" && p.onchain ? (
         <PoolsCard breakdown={p.onchain} busy={busy} onSync={vault.sync ? () => run(vault.sync!) : undefined} />

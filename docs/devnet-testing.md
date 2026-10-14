@@ -77,8 +77,13 @@ The vault pages switch from **Preview** to real devnet transactions, with a **De
 5. On the dashboard, **Where the vault's money is** shows the whole vault from the chain: 20% kept liquid and the
    rest in a practice pool per protocol. **Collect interest & rebalance** pays the pools their interest and moves
    them back to their targets; anyone can press it.
-6. On the Vault page, **Open Blink** opens the deposit as a Solana Blink on dial.to. Anyone with test tokens can
-   deposit from that link or a QR code of it.
+6. On the Vault page, the **Deposit from a link** card is the deposit as a Solana Action (a Blink). **Try it** opens
+   `/vault/blink`, which draws the Action the way a Blink client does and deposits through your wallet. **Copy link**
+   copies the dial.to link to share; dial.to shows a warning first because the Action isn't in the Blinks registry,
+   and X won't unfurl it until it is.
+
+Your wallet must be on **Devnet** too. If it's on mainnet, it simulates the transaction there and warns about it
+(Solflare: Settings → Network → Devnet; Phantom: Settings → Developer settings → Testnet mode → Solana Devnet).
 
 ## What's real and what isn't
 

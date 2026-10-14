@@ -81,7 +81,8 @@ demo shows the same features), and reduce slide 13 to its "Not yet" line.
 4. **Collect interest & rebalance**: anyone can press it; it only moves money toward the on-chain strategy.
 5. Withdraw more than the reserve holds: the program pulls the difference from the pools. Above 2,000 the rest
    waits 30 minutes (don't wait live).
-6. **Open Blink** on the Vault page: the same deposit from a link or QR code.
+6. **Try it** on the Vault page's "Deposit from a link" card: the same deposit, drawn from the Solana Action that
+   Blink clients read. **Copy link** gives the dial.to link to share.
 
 Say out loud: devnet tokens have no value, and the practice pools pay fixed practice rates, not market yield.
 

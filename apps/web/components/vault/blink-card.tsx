@@ -1,14 +1,16 @@
 "use client";
 
 import { Button } from "@stablesave/ui";
-import { ArrowUpRight, Check, Copy, Zap } from "lucide-react";
+import { ArrowRight, Check, Copy, Zap } from "lucide-react";
+import Link from "next/link";
 import * as React from "react";
 import { useEnvironment } from "@/components/providers/environment";
 import { blinkUrl } from "@/lib/actions/solana-actions";
 
 /**
  * The vault's deposit Blink: a link anyone can open (dial.to, or a wallet that
- * reads Solana Actions) to deposit without visiting the site.
+ * reads Solana Actions) to deposit without visiting the site. "Try it" opens the
+ * same Action rendered on this site, which doesn't depend on any Blink client.
  */
 export function BlinkCard() {
   const env = useEnvironment();
@@ -38,7 +40,7 @@ export function BlinkCard() {
         <div className="min-w-0">
           <p className="text-[15px] font-semibold">Deposit from a link</p>
           <p className="mt-0.5 text-[13px] leading-relaxed text-fg-muted">
-            A Solana Blink: anyone with test USDC can deposit from a post or a QR code, without visiting this site.
+            A Solana Blink: a deposit as a shareable link, for posts and QR codes. Try it here, or copy the dial.to link.
           </p>
         </div>
       </div>
@@ -48,10 +50,10 @@ export function BlinkCard() {
           {copied ? "Copied" : "Copy link"}
         </Button>
         <Button asChild variant="primary" size="sm">
-          <a href={link} target="_blank" rel="noopener noreferrer">
-            Open Blink
-            <ArrowUpRight />
-          </a>
+          <Link href="/vault/blink">
+            Try it
+            <ArrowRight />
+          </Link>
         </Button>
       </div>
     </section>

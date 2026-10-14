@@ -343,6 +343,9 @@ export async function cancelOnchain(ctx: SendContext, state: OnchainVaultState) 
 export function describeTxError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   if (/reject|denied|cancel/i.test(message)) return "You cancelled the request in your wallet.";
+  if (/mainnet|mismatch|wrong network|different network|unsupported chain|chain.*not supported/i.test(message)) {
+    return "Your wallet is on a different network. Switch it to Devnet (Solflare: Settings → Network; Phantom: Settings → Developer settings → Testnet mode) and try again.";
+  }
   const code = extractCustomErrorCode(message);
   if (code !== null) return describeVaultError(code) ?? `The program rejected the transaction (error ${code}).`;
   return message.length > 160 ? `${message.slice(0, 157)}…` : message;

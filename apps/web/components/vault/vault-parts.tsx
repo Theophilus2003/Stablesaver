@@ -25,6 +25,12 @@ export function VaultModeBanner({ className }: { className?: string }) {
           <span className="text-fg">Solana {CLUSTER_LABEL[cluster]}.</span> Transactions are real on this cluster
           {cluster !== "mainnet-beta" ? " (test tokens only)" : ""}. Program{" "}
           <span className="font-mono text-xs text-fg">{vaultProgramId?.slice(0, 4)}…{vaultProgramId?.slice(-4)}</span>.
+          {cluster !== "mainnet-beta" ? (
+            <>
+              {" "}
+              Set your wallet to <span className="text-fg">{CLUSTER_LABEL[cluster]}</span> too, or it will try the transaction on mainnet.
+            </>
+          ) : null}
         </p>
       </div>
     );
