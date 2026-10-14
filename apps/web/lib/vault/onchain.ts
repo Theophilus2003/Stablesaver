@@ -252,17 +252,42 @@ export interface SendContext {
   owner: string;
   mint: string;
   sendTransaction: (tx: Transaction, connection: Connection) => Promise<string>;
+  /** When the wallet offers it, it only signs and the site sends (see submitTransaction). */
+  signTransaction?: (tx: Transaction) => Promise<Transaction>;
+}
+
+/**
+ * Simulate on the site's cluster, have the wallet sign, then send it ourselves. Because the wallet
+ * only signs, the transaction goes to this cluster even when the wallet is set to another one, and
+ * problems (no SOL for fees, not enough tokens, a program check) show before the wallet opens.
+ */
+export async function submitTransaction(
+  ctx: Pick<SendContext, "connection" | "sendTransaction" | "signTransaction">,
+  tx: Transaction,
+): Promise<string> {
+  const { connection } = ctx;
+  const latest = await connection.getLatestBlockhash("confirmed");
+  tx.recentBlockhash = latest.blockhash;
+  const simulation = await connection.simulateTransaction(tx);
+  if (simulation.value.err) {
+    throw new Error(`Simulation failed: ${JSON.stringify(simulation.value.err)} ${(simulation.value.logs ?? []).join(" ")}`);
+  }
+  let signature: string;
+  if (ctx.signTransaction) {
+    const signed = await ctx.signTransaction(tx);
+    signature = await connection.sendRawTransaction(signed.serialize(), { preflightCommitment: "confirmed" });
+  } else {
+    signature = await ctx.sendTransaction(tx, connection);
+  }
+  const result = await connection.confirmTransaction({ signature, ...latest }, "confirmed");
+  if (result.value.err) throw new Error(`Transaction failed: ${JSON.stringify(result.value.err)}`);
+  return signature;
 }
 
 async function send(ctx: SendContext, instructions: Instruction[]): Promise<string> {
   const tx = new Transaction().add(...toWeb3JsInstructions(instructions));
   tx.feePayer = new PublicKey(ctx.owner);
-  const latest = await ctx.connection.getLatestBlockhash("confirmed");
-  tx.recentBlockhash = latest.blockhash;
-  const signature = await ctx.sendTransaction(tx, ctx.connection);
-  const result = await ctx.connection.confirmTransaction({ signature, ...latest }, "confirmed");
-  if (result.value.err) throw new Error(`Transaction failed: ${JSON.stringify(result.value.err)}`);
-  return signature;
+  return submitTransaction(ctx, tx);
 }
 
 export async function depositOnchain(ctx: SendContext, state: OnchainVaultState, amountUsd: number) {
@@ -343,6 +368,13 @@ export async function cancelOnchain(ctx: SendContext, state: OnchainVaultState) 
 export function describeTxError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   if (/reject|denied|cancel/i.test(message)) return "You cancelled the request in your wallet.";
+  if (/AccountNotFound|InsufficientFundsForFee|no record of a prior credit/i.test(message)) {
+    return "This wallet has no devnet SOL to pay the network fee. Get some at faucet.solana.com (choose Devnet) and try again.";
+  }
+  if (/insufficient funds/i.test(message)) return "This wallet doesn't hold enough test USDC for that amount.";
+  if (/block height exceeded|has expired/i.test(message)) {
+    return "The transaction didn't reach the network in time. Try again; if it keeps happening, check that your wallet is on Devnet and has a little devnet SOL.";
+  }
   if (/mainnet|mismatch|wrong network|different network|unsupported chain|chain.*not supported/i.test(message)) {
     return "Your wallet is on a different network. Switch it to Devnet (Solflare: Settings → Network; Phantom: Settings → Developer settings → Testnet mode) and try again.";
   }

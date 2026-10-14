@@ -9,13 +9,13 @@ import { useEnvironment } from "@/components/providers/environment";
 import { useWalletDialog } from "@/components/wallet/wallet-providers";
 import { blinkUrl, type ActionGetResponse, type LinkedAction } from "@/lib/actions/solana-actions";
 import { CLUSTER_LABEL, explorerTxUrl } from "@/lib/env";
-import { describeTxError } from "@/lib/vault/onchain";
+import { describeTxError, submitTransaction } from "@/lib/vault/onchain";
 
 const ACTION_PATH = "/api/actions/deposit";
 
 type Status =
   | { phase: "idle" }
-  | { phase: "building" | "signing" | "confirming"; signature?: string }
+  | { phase: "building" | "signing" }
   | { phase: "done"; signature: string; message?: string }
   | { phase: "error"; message: string };
 
@@ -34,7 +34,7 @@ function base64ToBytes(value: string): Uint8Array {
 export function BlinkPreview() {
   const env = useEnvironment();
   const { connection } = useConnection();
-  const { publicKey, sendTransaction } = useWallet();
+  const { publicKey, sendTransaction, signTransaction } = useWallet();
   const { setOpen: openWalletDialog } = useWalletDialog();
   const [meta, setMeta] = React.useState<ActionGetResponse | null>(null);
   const [loadError, setLoadError] = React.useState<string | null>(null);
@@ -62,7 +62,7 @@ export function BlinkPreview() {
       .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : String(e)));
   }, []);
 
-  const busy = status.phase === "building" || status.phase === "signing" || status.phase === "confirming";
+  const busy = status.phase === "building" || status.phase === "signing";
 
   async function run(action: LinkedAction) {
     if (!publicKey) {
@@ -89,11 +89,8 @@ export function BlinkPreview() {
       if (!res.ok || !body.transaction) throw new Error(body.message ?? `The Action answered ${res.status}.`);
       const tx = Transaction.from(base64ToBytes(body.transaction));
       setStatus({ phase: "signing" });
-      const signature = await sendTransaction(tx, connection);
-      setStatus({ phase: "confirming", signature });
-      const latest = await connection.getLatestBlockhash("confirmed");
-      const result = await connection.confirmTransaction({ signature, blockhash: tx.recentBlockhash ?? latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight }, "confirmed");
-      if (result.value.err) throw new Error(`Transaction failed: ${JSON.stringify(result.value.err)}`);
+      // Simulated on this cluster, signed by the wallet, sent by us (refreshes the blockhash too).
+      const signature = await submitTransaction({ connection, sendTransaction, signTransaction }, tx);
       setStatus({ phase: "done", signature, message: body.message });
     } catch (error) {
       setStatus({ phase: "error", message: describeTxError(error) });
@@ -198,8 +195,7 @@ export function BlinkPreview() {
                   {status.phase === "done" ? <Check className="mt-0.5 size-4 shrink-0" /> : null}
                   <span>
                     {status.phase === "building" && "Building the transaction…"}
-                    {status.phase === "signing" && "Approve it in your wallet…"}
-                    {status.phase === "confirming" && `Confirming on ${CLUSTER_LABEL[env.cluster]}…`}
+                    {status.phase === "signing" && `Approve it in your wallet, then it goes to ${CLUSTER_LABEL[env.cluster]}…`}
                     {status.phase === "error" && status.message}
                     {status.phase === "done" ? (
                       <>

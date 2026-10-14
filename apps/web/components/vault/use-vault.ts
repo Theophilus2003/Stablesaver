@@ -147,7 +147,7 @@ function useSimulatedVault(opportunities: readonly RatedOpportunity[]): VaultCon
 function useOnchainVault(opportunities: readonly RatedOpportunity[]): VaultController {
   const env = useEnvironment();
   const { connection } = useConnection();
-  const { publicKey, sendTransaction } = useWallet();
+  const { publicKey, sendTransaction, signTransaction } = useWallet();
   const owner = publicKey?.toBase58();
   const [vaults, setVaults] = React.useState<OnchainVaultState[] | null>(null);
   const [walletBalance, setWalletBalance] = React.useState<number | null>(null);
@@ -196,7 +196,7 @@ function useOnchainVault(opportunities: readonly RatedOpportunity[]): VaultContr
 
   function ctx(): SendContext {
     if (!owner) throw new Error("Connect a wallet first.");
-    return { connection, owner, mint: config.mint, sendTransaction: (tx, c) => sendTransaction(tx, c) };
+    return { connection, owner, mint: config.mint, sendTransaction: (tx, c) => sendTransaction(tx, c), signTransaction };
   }
   const refresh = () => setTick((t) => t + 1);
 
