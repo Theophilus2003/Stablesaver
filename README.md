@@ -1,4 +1,9 @@
-# StableSave
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="apps/web/public/brand/stablesave-logo-dark.svg">
+    <img src="apps/web/public/brand/stablesave-logo-light.svg" alt="StableSave" width="280">
+  </picture>
+</h1>
 
 See what your idle USDC and USDT could earn across networks, compare yield, fees and risk, and choose where your money
 goes.
@@ -85,6 +90,7 @@ packages/
 idl/stablesave_vault.json   Anchor IDL (input to Codama)
 scripts/generate-client.mjs Codama generation
 docs/                       Architecture, vault program, risk methodology
+presentation/               Demo day deck (PPTX + PDF), its assets, and the scripts that build the deck and logo
 ```
 
 ## The main flow
@@ -107,6 +113,9 @@ Everything is computed from the data layer: nothing in the UI is a hard-coded ra
 - [Testing on devnet](docs/devnet-testing.md): deploy from GitHub Actions, get test tokens, point the site at it
 - [Risk methodology](docs/risk-methodology.md): factors, weights, caps, grade scale
 - [Client](packages/client/README.md): using the Codama client
+- [Logo files](apps/web/public/brand): the StableSave mark (a spirit level with the bubble centred) and the full
+  logo, as SVG and PNG, for dark and light backgrounds. Brand greens: `#3DDC97` on dark, `#0E8A57` on light.
+  Regenerate them with `cd presentation/build && npm install && npm run brand`.
 
 ## Known gaps
 

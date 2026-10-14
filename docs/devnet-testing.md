@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../apps/web/public/brand/stablesave-logo-dark.svg">
+  <img src="../apps/web/public/brand/stablesave-logo-light.svg" alt="StableSave" width="180">
+</picture>
+
 # Testing the vault on devnet
 
 The StableSave Vault runs as a simulated preview until its program is deployed. This guide deploys it to Solana

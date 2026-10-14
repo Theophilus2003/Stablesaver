@@ -97,7 +97,7 @@ function OnboardingDialog({
         }}
       >
         <div className="flex size-11 items-center justify-center rounded-[14px] border border-line bg-surface-2">
-          <LogoMark className="size-5" />
+          <LogoMark className="size-7" />
         </div>
 
         <Eyebrow className="mt-6">Welcome to StableSave</Eyebrow>

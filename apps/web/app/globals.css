@@ -28,6 +28,10 @@
   --color-grade-c: #e8955c;
   --color-grade-d: #ec7272;
 
+  /* Brand: the logo's greens. Bright on dark grounds, deep on light ones. */
+  --color-brand: #3ddc97;
+  --color-brand-deep: #0e8a57;
+
   /* Solana accents, used sparingly. */
   --color-sol-purple: #9945ff;
   --color-sol-green: #14f195;

@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../apps/web/public/brand/stablesave-logo-dark.svg">
+  <img src="../apps/web/public/brand/stablesave-logo-light.svg" alt="StableSave" width="180">
+</picture>
+
 # StableSave Vault program
 
 `programs/stablesave-vault` (Anchor 1.2). A share-based savings vault for a 6-decimal stablecoin (USDC). One vault

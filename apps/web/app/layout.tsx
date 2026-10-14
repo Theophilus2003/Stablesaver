@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   },
   description:
     "Compare ways to earn on idle USDC and USDT, across networks. Estimated yearly earnings after fees, an A–D safety grade, and where your money goes.",
-  icons: { icon: "/icon.svg" },
+  icons: { icon: "/icon.svg", apple: "/apple-icon.png" },
 };
 
 export const viewport: Viewport = {
