@@ -1,6 +1,8 @@
-// StableSave demo day deck. Run from this folder: npm install, then npm run graphics && npm run deck
-// Facts come from "StableSave — Project Review Guide" and the StableSave code. Screenshots are of the
-// real interface from a local build with demo data; every slide that shows one says so.
+// StableSave demo day deck, in a scrapbook "class notes" style: charcoal background, Anton
+// headings on green paint blobs, IBM Plex Mono labels, Archivo text, tilted cards and stickers.
+// Run from this folder: npm install, then npm run deck. Speaker notes live in notes.json.
+// Facts come from "StableSave — Project Review Guide" and the StableSave code. Screenshots are of
+// the real interface from a local build with demo data; every slide that shows one says so.
 const path = require("path");
 const fs = require("fs");
 const sharp = require("sharp");
@@ -9,43 +11,56 @@ const ReactDOMServer = require("react-dom/server");
 const pptxgen = require("pptxgenjs");
 const Lu = require("react-icons/lu");
 const { applyTheme } = require("./apply-theme");
+const art = require("./art");
 
 const ROOT = path.join(__dirname, "..");
 const ASSET = (...p) => path.join(ROOT, "assets", ...p);
 const OUT = path.join(ROOT, "StableSave-Demo-Day.pptx");
+const NOTES = JSON.parse(fs.readFileSync(path.join(__dirname, "notes.json"), "utf8"));
 
 const HEX = {
-  navy: "0B1020",
-  surface: "131C31",
-  raised: "1B2640",
-  border: "26324F",
-  purple: "9945FF",
-  green: "14F195",
-  white: "F5F7FB",
-  muted: "9AA7BD",
-  amber: "F5B942",
+  bg: "1C1C1C",
+  surface: "262626",
+  raised: "2F2F2F",
+  border: "3D3D3D",
+  white: "F2F2F2",
+  muted: "A3A3A3",
+  sub: "C9C9C9",
+  green: "3DDC97",
+  yellow: "F2C14E",
+  orange: "EE8A43",
+  purple: "A47CF3",
   red: "F0616D",
+  ink: "141414",
+  greenTint: "1F2B25",
+  yellowTint: "2B2719",
+  orangeTint: "2D2219",
+  purpleTint: "26212F",
 };
 
 const THEME = {
-  name: "StableSave",
-  headFontFace: "Inter",
-  bodyFontFace: "Inter",
+  name: "StableSave Scrapbook",
+  headFontFace: "Anton",
+  bodyFontFace: "Archivo",
   colors: {
-    dk1: HEX.navy,
+    dk1: HEX.bg,
     lt1: HEX.white,
     dk2: HEX.surface,
     lt2: HEX.muted,
-    accent1: HEX.purple,
-    accent2: HEX.green,
-    accent3: HEX.amber,
-    accent4: HEX.red,
+    accent1: HEX.green,
+    accent2: HEX.yellow,
+    accent3: HEX.orange,
+    accent4: HEX.purple,
     accent5: HEX.raised,
     accent6: HEX.border,
     hlink: HEX.green,
     folHlink: HEX.purple,
   },
 };
+
+const MONO = "IBM Plex Mono";
+const MONO_SEMI = "IBM Plex Mono SemiBold";
+const DISPLAY = "Anton";
 
 const pres = new pptxgen();
 pres.layout = "LAYOUT_WIDE"; // 13.333 x 7.5 in
@@ -56,22 +71,25 @@ pres.subject = "Stablecoin yield intelligence and a Solana vault prototype";
 pres.theme = { headFontFace: THEME.headFontFace, bodyFontFace: THEME.bodyFontFace };
 
 const C = pres.SchemeColor;
-const INK = C.background1; // soft white text on the dark deck
+const BG = C.text1;
+const INK = C.background1;
 const MUTED = C.background2;
 const SURFACE = C.text2;
-const NAVY = C.text1;
-const PURPLE = C.accent1;
-const GREEN = C.accent2;
-const AMBER = C.accent3;
-const RED = C.accent4;
+const GREEN = C.accent1;
+const YELLOW = C.accent2;
+const ORANGE = C.accent3;
+const PURPLE = C.accent4;
 const RAISED = C.accent5;
 const BORDER = C.accent6;
 const S = pres.ShapeType;
 
 const W = 13.333;
-const X0 = 0.6;
-const CW = W - 2 * X0; // content width 12.133
-const TOP = 1.72; // content starts under a two-line title
+const H = 7.5;
+const X0 = 0.75;
+const CW = W - 2 * X0; // 11.833
+const TOP = 2.55; // content starts under the blob title and its subtitle
+const TOTAL = 18;
+let page = 0;
 
 /* ---------------------------------------------------------------- helpers */
 
@@ -81,13 +99,11 @@ async function size(file) {
 }
 
 /** Fit an image of px size into a box, keeping its ratio; returns x, y, w, h (centred). */
-function fit(px, box, align = "center") {
+function fit(px, box) {
   const r = Math.min(box.w / px.w, box.h / px.h);
   const w = px.w * r;
   const h = px.h * r;
-  const x = align === "left" ? box.x : box.x + (box.w - w) / 2;
-  const y = box.y + (box.h - h) / 2;
-  return { x, y, w, h };
+  return { x: box.x + (box.w - w) / 2, y: box.y + (box.h - h) / 2, w, h };
 }
 
 async function icon(Component, hex, px = 256) {
@@ -96,72 +112,114 @@ async function icon(Component, hex, px = 256) {
   return "image/png;base64," + png.toString("base64");
 }
 
+const hardShadow = () => ({ type: "outer", blur: 0, offset: 5, angle: 45, color: "080808", opacity: 0.85 });
+
 function text(slide, value, opts) {
   slide.addText(value, { isTextBox: true, margin: 0, fontSize: 14, color: INK, valign: "top", ...opts });
 }
 
-function card(slide, { x, y, w, h, fill = SURFACE, line = BORDER, radius = 0.14, name, transparency }) {
+function mono(slide, value, opts) {
+  text(slide, value, { fontFace: MONO, fontSize: 10.5, charSpacing: 2, color: MUTED, ...opts });
+}
+
+/** "plain **bold** plain" → runs: plain in `base`, bold in white. */
+function rich(str, base = HEX.sub, opts = {}) {
+  return str
+    .split("**")
+    .map((t, i) => ({ text: t, options: { color: i % 2 ? INK : base, bold: i % 2 === 1, ...opts } }))
+    .filter((r) => r.text.length > 0);
+}
+
+function card(slide, { x, y, w, h, fill = SURFACE, line = BORDER, radius = 0.12, rotate, shadow, name }) {
   slide.addShape(S.roundRect, {
     x, y, w, h,
-    fill: { color: fill, ...(transparency !== undefined ? { transparency } : {}) },
-    line: { color: line, width: 0.75 },
+    fill: { color: fill },
+    line: { color: line, width: 1.25 },
     rectRadius: radius,
+    ...(rotate ? { rotate } : {}),
+    ...(shadow ? { shadow: hardShadow() } : {}),
     objectName: name,
   });
 }
 
-function chip(slide, { x, y, w, h = 0.34, label, color, fill, fontSize = 10.5, name }) {
-  slide.addText(label, {
-    shape: S.roundRect, rectRadius: h / 2, x, y, w, h,
-    fill: { color: fill ?? NAVY }, line: { color, width: 1 },
-    color, fontSize, bold: true, align: "center", valign: "middle", margin: 0, charSpacing: 1,
-    objectName: name, isTextBox: true,
+/** Card label: small mono caps in a colour. */
+function label(slide, value, { x, y, w, color = GREEN, size: fontSize = 10 }) {
+  mono(slide, value.toUpperCase(), { x, y, w, h: 0.26, fontSize, color, charSpacing: 2.5 });
+}
+
+/** Tinted note with an accent bar and mono text. */
+function callout(slide, runs, { x, y, w, h, tone = "green", fontSize = 10.5 }) {
+  const tint = { green: HEX.greenTint, yellow: HEX.yellowTint, orange: HEX.orangeTint, purple: HEX.purpleTint }[tone];
+  const bar = { green: GREEN, yellow: YELLOW, orange: ORANGE, purple: PURPLE }[tone];
+  slide.addShape(S.rect, { x, y, w, h, fill: { color: tint }, line: { color: tint, width: 0 }, objectName: `callout-${tone}` });
+  slide.addShape(S.rect, { x, y, w: 0.05, h, fill: { color: bar }, line: { color: bar, width: 0 } });
+  text(slide, runs, { x: x + 0.25, y: y + 0.06, w: w - 0.45, h: h - 0.12, fontFace: MONO, fontSize, color: HEX.sub, valign: "middle", lineSpacingMultiple: 1.15 });
+}
+
+/** A strip of coloured tape with a mono label, slightly crooked. */
+function tape(slide, value, { x, y, w, h = 0.36, color = YELLOW, textColor = HEX.ink, rotate = -2, fontSize = 10 }) {
+  slide.addText(value, {
+    shape: S.rect, x, y, w, h, rotate,
+    fill: { color }, line: { color, width: 0 },
+    fontFace: MONO_SEMI, fontSize, color: textColor, charSpacing: 2.5,
+    align: "center", valign: "middle", margin: 0, isTextBox: true,
   });
 }
 
-function numberBadge(slide, { x, y, n, color = GREEN, d = 0.36, fontSize = 13 }) {
+function dashed(slide, { x, y, w }) {
+  slide.addShape(S.line, { x, y, w, h: 0, line: { color: HEX.border, width: 1, dashType: "dash" } });
+}
+
+function pageNumber(slide) {
+  page += 1;
+  const n = String(page).padStart(2, "0");
+  mono(slide, `${n} / ${TOTAL}`, { x: W - X0 - 1.4, y: 6.98, w: 1.4, h: 0.26, fontSize: 9.5, color: "6E6E6E", align: "right", charSpacing: 2 });
+}
+
+function numberBadge(slide, { x, y, n, d = 0.36, fontSize = 11 }) {
   slide.addText(String(n), {
     shape: S.ellipse, x, y, w: d, h: d,
-    fill: { color }, line: { color: NAVY, width: 1.5 },
-    color: NAVY, bold: true, fontSize, align: "center", valign: "middle", margin: 0, isTextBox: true,
+    fill: { color: GREEN }, line: { color: BG, width: 1.5 },
+    fontFace: MONO_SEMI, color: HEX.ink, fontSize, align: "center", valign: "middle", margin: 0, isTextBox: true,
     objectName: `badge-${n}`,
   });
 }
 
-function screenshot(slide, file, px, box, { alt, name }) {
-  const f = fit(px, box);
-  card(slide, { x: f.x - 0.06, y: f.y - 0.06, w: f.w + 0.12, h: f.h + 0.12, fill: NAVY, line: BORDER, radius: 0.12, name: `${name}-frame` });
-  slide.addImage({ path: file, ...f, altText: alt, objectName: name });
-  return f;
-}
-
-function caption(slide, value, { x, y, w, align = "left", color = MUTED }) {
-  text(slide, value, { x, y, w, h: 0.3, fontSize: 10, color, align, italic: true });
-}
-
 /* ---------------------------------------------------------------- layouts */
 
+function header() {
+  return [
+    { image: { x: X0, y: 0.31, w: 0.22, h: 0.22, path: ASSET("graphics", "logo-mark.png") } },
+    { text: { text: "STABLESAVE", options: { x: X0 + 0.34, y: 0.29, w: 1.5, h: 0.26, fontFace: MONO_SEMI, fontSize: 10.5, color: GREEN, charSpacing: 3, margin: 0, valign: "middle" } } },
+    { text: { text: "·  DEMO DAY", options: { x: X0 + 1.74, y: 0.29, w: 2.5, h: 0.26, fontFace: MONO, fontSize: 10.5, color: MUTED, charSpacing: 3, margin: 0, valign: "middle" } } },
+  ];
+}
+
 function defineLayouts() {
-  pres.defineSlideMaster({
-    title: "COVER",
-    background: { path: ASSET("graphics", "cover-bg.png") },
-    objects: [],
-  });
+  pres.defineSlideMaster({ title: "COVER", background: { color: HEX.bg }, objects: [] });
   pres.defineSlideMaster({
     title: "CONTENT",
-    background: { path: ASSET("graphics", "content-bg.png") },
-    margin: [0.4, 0.6, 0.7, 0.6],
+    background: { color: HEX.bg },
     objects: [
-      { image: { x: X0, y: 7.0, w: 0.2, h: 0.2, path: ASSET("graphics", "logo-mark.png") } },
-      { text: { text: "StableSave · Demo Day", options: { x: X0 + 0.3, y: 6.97, w: 4, h: 0.26, fontSize: 10, color: MUTED, margin: 0, valign: "middle" } } },
-      {
-        placeholder: {
-          options: { name: "title", type: "title", x: X0, y: 0.42, w: CW, h: 1.15, fontSize: 32, bold: true, color: INK, align: "left", valign: "top", margin: 0, lineSpacingMultiple: 0.95 },
-          text: "",
-        },
-      },
+      ...header(),
+      { placeholder: { options: { name: "title", type: "title", x: X0, y: 0.7, w: CW, h: 0.66, fontFace: DISPLAY, fontSize: 34, color: INK, align: "left", valign: "middle", margin: 0 }, text: "" } },
     ],
-    slideNumber: { x: W - X0 - 0.6, y: 6.97, w: 0.6, h: 0.26, fontSize: 10, color: MUTED, align: "right", margin: 0 },
+  });
+  pres.defineSlideMaster({
+    title: "DIVIDER",
+    background: { color: HEX.bg },
+    objects: [
+      ...header(),
+      { placeholder: { options: { name: "title", type: "title", x: 0.5, y: 3.17, w: W - 1, h: 1.0, fontFace: DISPLAY, fontSize: 54, color: INK, align: "center", valign: "middle", margin: 0 }, text: "" } },
+    ],
+  });
+  pres.defineSlideMaster({
+    title: "CLOSE",
+    background: { color: HEX.bg },
+    objects: [
+      ...header(),
+      { placeholder: { options: { name: "title", type: "title", x: 0.5, y: 1.08, w: W - 1, h: 1.1, fontFace: DISPLAY, fontSize: 62, color: INK, align: "center", valign: "middle", margin: 0 }, text: "" } },
+    ],
   });
 }
 
@@ -169,189 +227,223 @@ function defineLayouts() {
 
 async function main() {
   defineLayouts();
+
+  // Artwork: stickers and the star bullet as files (reusable in PowerPoint), the cover collage.
+  const stickerDir = ASSET("graphics", "stickers");
+  fs.mkdirSync(stickerDir, { recursive: true });
+  const stickers = {};
+  for (const name of Object.keys(art.STICKER_ART)) {
+    const file = path.join(stickerDir, `${name}.png`);
+    fs.writeFileSync(file, await art.stickerPng(name));
+    stickers[name] = file;
+  }
+  const star = ASSET("graphics", "star-bullet.png");
+  fs.writeFileSync(star, await art.starPng());
+  const collageFile = ASSET("graphics", "cover-collage.png");
+  const COLLAGE_X = 6.45;
+  fs.writeFileSync(
+    collageFile,
+    await art.coverCollage({
+      widthIn: W - COLLAGE_X,
+      heightIn: H,
+      screens: { home: ASSET("screens", "01-home-hero.png"), pools: ASSET("screens", "12-vault-pools.png"), share: ASSET("screens", "11-share-card.png") },
+      lockup: ASSET("graphics", "logo-lockup.png"),
+    }),
+  );
+
   const shots = {};
   for (const f of fs.readdirSync(ASSET("screens"))) shots[f.replace(/\.png$/, "")] = { file: ASSET("screens", f), px: await size(ASSET("screens", f)) };
   const qr = ASSET("graphics", "qr-stablesaver.png");
-  const lockup = { file: ASSET("graphics", "logo-lockup.png"), px: await size(ASSET("graphics", "logo-lockup.png")) };
-  const logo = (s, h, extra = {}) =>
-    s.addImage({ path: lockup.file, x: X0, y: 0.62, h, w: (h * lockup.px.w) / lockup.px.h, altText: "StableSave logo", ...extra });
+
   const ic = {
-    layers: await icon(Lu.LuLayers, HEX.muted),
-    trend: await icon(Lu.LuTrendingUp, HEX.green),
-    receipt: await icon(Lu.LuReceipt, HEX.amber),
-    shield: await icon(Lu.LuShieldAlert, HEX.amber),
-    compass: await icon(Lu.LuCompass, HEX.muted),
     wallet: await icon(Lu.LuWallet, HEX.white),
-    gauge: await icon(Lu.LuGauge, HEX.green),
     code: await icon(Lu.LuCodeXml, HEX.purple),
-    lock: await icon(Lu.LuLock, HEX.green),
+    check: await icon(Lu.LuShieldCheck, HEX.green),
     users: await icon(Lu.LuUsers, HEX.green),
+    layers: await icon(Lu.LuLayers, HEX.green),
     timer: await icon(Lu.LuTimer, HEX.green),
     pause: await icon(Lu.LuCirclePause, HEX.green),
     key: await icon(Lu.LuKeyRound, HEX.green),
     calc: await icon(Lu.LuCalculator, HEX.green),
     test: await icon(Lu.LuFlaskConical, HEX.green),
-    check: await icon(Lu.LuShieldCheck, HEX.green),
-    bars: await icon(Lu.LuChartBar, HEX.green),
-    vault: await icon(Lu.LuVault, HEX.purple),
-    msg: await icon(Lu.LuMessageSquare, HEX.green),
   };
+
+  const sticker = (s, name, { x, y, w, rotate = 0 }) =>
+    s.addImage({ path: stickers[name], x, y, w, h: w, rotate, altText: `${name} sticker`, objectName: `sticker-${name}` });
+
+  /** Title on a green paint blob, plus an optional subtitle with **bold** phrases. */
+  async function title(s, value, sub, seed) {
+    // Snug on the left (the blob's rounded end adds its own room), generous on the right.
+    const b = await art.titleBlob(art.antonWidth(value, 34), 1.12, seed, { marginLeft: 0.1, marginRight: 0.35 });
+    s.addImage({ data: b.data, x: X0 - 0.1 - b.left, y: 0.46, w: b.w, h: b.h, altText: "", objectName: "title-blob" });
+    s.addText(value, { placeholder: "title" });
+    if (sub) text(s, rich(sub), { x: X0, y: 1.62, w: 8.6, h: 0.7, fontSize: 17, lineSpacingMultiple: 1.0 });
+  }
+
+  /** Bullet list with the orange star; items are "**head**: rest" strings. */
+  function bullets(s, items, { x, y, w, rowH, fontSize = 14, gap = 0 }) {
+    items.forEach((item, i) => {
+      const iy = y + i * (rowH + gap);
+      s.addImage({ path: star, x, y: iy + (fontSize / 72) * 0.28, w: 0.17, h: 0.17, altText: "" });
+      text(s, rich(item, INK), { x: x + 0.32, y: iy, w: w - 0.32, h: rowH, fontSize, lineSpacingMultiple: 1.05 });
+    });
+  }
+
+  /** A screenshot on a dark frame with a hard shadow; optional slight tilt. */
+  function screenshot(s, key, box, { alt, name, rotate = 0 }) {
+    const sh = shots[key];
+    const f = fit(sh.px, box);
+    s.addShape(S.roundRect, {
+      x: f.x - 0.05, y: f.y - 0.05, w: f.w + 0.1, h: f.h + 0.1, rectRadius: 0.08,
+      fill: { color: "0E0E0E" }, line: { color: BORDER, width: 1.25 }, shadow: hardShadow(),
+      ...(rotate ? { rotate } : {}), objectName: `${name}-frame`,
+    });
+    s.addImage({ path: sh.file, ...f, altText: alt, objectName: name, ...(rotate ? { rotate } : {}) });
+    return f;
+  }
+
+  async function divider(n, value, sub, stickerSet, notes, section) {
+    const s = pres.addSlide({ masterName: "DIVIDER", sectionTitle: section });
+    mono(s, `CHAPTER ${String(n).padStart(2, "0")}`, { x: 0, y: 2.62, w: W, h: 0.3, fontFace: MONO_SEMI, fontSize: 11, color: YELLOW, align: "center", charSpacing: 5 });
+    const b = await art.titleBlob(art.antonWidth(value, 54), 1.6, 40 + n, { margin: 0.45 });
+    s.addImage({ data: b.data, x: W / 2 - (b.left + b.right) / 2, y: 2.88, w: b.w, h: b.h, altText: "", objectName: "title-blob" });
+    s.addText(value, { placeholder: "title" });
+    text(s, rich(sub), { x: 2.2, y: 4.62, w: W - 4.4, h: 0.7, fontSize: 18, align: "center" });
+    for (const st of stickerSet) sticker(s, st.name, st);
+    pageNumber(s);
+    s.addNotes(notes);
+  }
 
   /* ---------- 1. Cover ---------- */
   pres.addSection({ title: "Opening" });
   {
     const s = pres.addSlide({ masterName: "COVER", sectionTitle: "Opening" });
-    logo(s, 0.42, { objectName: "logo" });
-    text(s, "STABLECOIN YIELD INTELLIGENCE  +  SOLANA VAULT PROTOTYPE", { x: X0, y: 2.05, w: 8, h: 0.3, fontSize: 11, bold: true, color: GREEN, charSpacing: 2, objectName: "descriptor" });
+    s.addImage({ path: collageFile, x: COLLAGE_X, y: 0, w: W - COLLAGE_X, h: H, altText: "Collage: StableSave screens, a DEMO DAY label, code snippets and stickers", objectName: "collage" });
+    tape(s, "STABLESAVE  ·  DEMO DAY", { x: X0, y: 1.05, w: 3.55, h: 0.38, rotate: -2.5, fontSize: 10.5 });
+    const big = Math.min(118, Math.floor((5.4 * 118) / art.antonWidth("STABLE", 118)));
     text(s, [
-      { text: "Know the risk before you ", options: { color: INK } },
-      { text: "chase the yield.", options: { color: GREEN } },
-    ], { x: X0, y: 2.45, w: 7.6, h: 2.1, fontSize: 52, bold: true, lineSpacingMultiple: 0.92, objectName: "headline" });
-    text(s, "A simpler way to compare stablecoin yield opportunities, understand risk, and see what remains after fees.", {
-      x: X0, y: 4.75, w: 6.4, h: 0.9, fontSize: 18, color: MUTED, lineSpacingMultiple: 1.15, objectName: "subhead",
-    });
+      { text: "STABLE", options: { color: INK, breakLine: true } },
+      { text: "SAVE", options: { color: GREEN } },
+    ], { x: X0, y: 1.78, w: 5.6, h: 3.2, fontFace: DISPLAY, fontSize: big, lineSpacingMultiple: 0.86, objectName: "wordmark" });
+    mono(s, "STABLECOIN YIELD  ·  SOLANA VAULT PROTOTYPE", { x: X0, y: 5.05, w: 5.6, h: 0.3, fontFace: MONO_SEMI, fontSize: 10.5, color: GREEN, charSpacing: 2.5 });
+    text(s, rich("Know the risk **before you chase the yield.**"), { x: X0, y: 5.42, w: 5.5, h: 0.45, fontSize: 19 });
     text(s, [
-      { text: "Theo", options: { bold: true, color: INK, breakLine: true } },
-      { text: "Demo Day · stablesaver-web.vercel.app", options: { color: MUTED } },
-    ], { x: X0, y: 6.25, w: 6, h: 0.6, fontSize: 13, objectName: "presenter" });
-    s.addNotes([
-      "TIME: about 20 seconds.",
-      "",
-      "Key message: StableSave helps people see the risk and the real return before they chase a headline rate.",
-      "",
-      "Talking points:",
-      "- Hi, I'm Theo. This is StableSave.",
-      "- It has two parts, and I'll keep them separate all the way through: a comparison app that is live today, and a Solana vault that is a devnet prototype.",
-      "- One line to remember: know the risk before you chase the yield.",
-      "",
-      "Transition: Let's start with why this matters.",
-    ].join("\n"));
+      { text: "Theo", options: { bold: true, color: INK } },
+      { text: "   stablesaver-web.vercel.app", options: { color: MUTED, fontFace: MONO, fontSize: 11, charSpacing: 1 } },
+    ], { x: X0, y: 6.3, w: 5.5, h: 0.35, fontSize: 14, valign: "middle", objectName: "presenter" });
+    s.addNotes(NOTES.cover);
+    page += 1;
   }
 
   /* ---------- 2. Problem ---------- */
   {
     const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Opening" });
-    s.addText([{ text: "Finding yield is easy.", options: { breakLine: true } }, { text: "Knowing what you're taking on is harder" }], { placeholder: "title" });
+    await title(s, "YIELD IS EASY TO FIND", "Knowing **what you're taking on** is the hard part.", 11);
+    // The headline number everyone sees, as a tilted card.
+    s.addText([
+      { text: "WHAT YOU SEE", options: { fontFace: MONO, fontSize: 10, color: GREEN, charSpacing: 2.5, breakLine: true } },
+      { text: "A BIG APY", options: { fontFace: DISPLAY, fontSize: 60, color: GREEN, breakLine: true } },
+      { text: "One number on a dashboard, usually the highest one.", options: { fontSize: 15, color: INK, breakLine: true } },
+      { text: " ", options: { fontSize: 8, breakLine: true } },
+      { text: "CONCEPTUAL ILLUSTRATION", options: { fontFace: MONO, fontSize: 9, color: MUTED, charSpacing: 2 } },
+    ], {
+      shape: S.roundRect, rectRadius: 0.14, x: X0 + 0.15, y: TOP + 0.2, w: 4.3, h: 3.3, rotate: -2.5,
+      fill: { color: SURFACE }, line: { color: BORDER, width: 1.25 }, shadow: hardShadow(),
+      margin: [18, 22, 18, 22], valign: "middle", isTextBox: true, objectName: "seen-card",
+    });
+    sticker(s, "chart", { x: X0 + 3.75, y: TOP - 0.25, w: 1.15, rotate: 12 });
 
-    // Left: the headline rate everyone sees.
-    const L = { x: X0, y: TOP + 0.05, w: 4.6, h: 4.95 };
-    card(s, { ...L, fill: SURFACE, line: BORDER, name: "seen-card" });
-    text(s, "WHAT YOU SEE", { x: L.x + 0.4, y: L.y + 0.4, w: 3.8, h: 0.3, fontSize: 11, bold: true, color: MUTED, charSpacing: 2 });
-    text(s, "A big APY", { x: L.x + 0.4, y: L.y + 0.9, w: 3.8, h: 0.6, fontSize: 30, bold: true, color: GREEN });
-    text(s, "One number on a dashboard, usually the highest one.", { x: L.x + 0.4, y: L.y + 1.55, w: 3.8, h: 0.7, fontSize: 15, color: INK });
-    s.addImage({ data: ic.trend, x: L.x + 0.4, y: L.y + 2.55, w: 1.25, h: 1.25, altText: "Rising line icon" });
-    text(s, "Conceptual illustration", { x: L.x + 0.4, y: L.y + 4.35, w: 3.8, h: 0.3, fontSize: 10, italic: true, color: MUTED });
-
-    // Right: what sits behind it.
+    const RX = X0 + 5.35;
+    const RW = CW - 5.35;
+    label(s, "What you take on", { x: RX, y: TOP + 0.02, w: RW, color: YELLOW });
     const items = [
-      [ic.layers, "Scattered", "Options sit across many protocols and networks."],
-      [ic.trend, "Higher isn't better", "A higher APY can mean more risk, not a better deal."],
-      [ic.receipt, "Fees bite", "Network fees can wipe out the return on a small deposit."],
-      [ic.shield, "Hard to compare", "Security, liquidity, maturity and strategy complexity hide in docs."],
-      [ic.compass, "No framework", "Beginners have no clear way to weigh any of it."],
+      "**Scattered**: options sit across many protocols and networks",
+      "**Higher isn't better**: a higher APY can mean more risk, not a better deal",
+      "**Fees bite**: network fees can wipe out the return on a small deposit",
+      "**Hard to compare**: security, liquidity, maturity and strategy complexity hide in docs",
+      "**No framework**: beginners have no clear way to weigh any of it",
     ];
-    const RX = X0 + 4.95;
-    const RW = CW - 4.95;
-    text(s, "WHAT YOU TAKE ON", { x: RX, y: L.y + 0.02, w: RW, h: 0.3, fontSize: 11, bold: true, color: AMBER, charSpacing: 2 });
-    const rowH = 0.86;
-    items.forEach(([img, head, body], i) => {
-      const y = L.y + 0.45 + i * (rowH + 0.06);
-      card(s, { x: RX, y, w: RW, h: rowH, fill: SURFACE, line: BORDER, radius: 0.12, name: `risk-${i}` });
-      s.addImage({ data: img, x: RX + 0.25, y: y + 0.23, w: 0.4, h: 0.4, altText: head });
-      text(s, head, { x: RX + 0.85, y: y + 0.14, w: 2.4, h: 0.6, fontSize: 16, bold: true, valign: "middle" });
-      text(s, body, { x: RX + 3.25, y: y + 0.14, w: RW - 3.45, h: 0.6, fontSize: 14, color: MUTED, valign: "middle" });
-    });
-    s.addNotes([
-      "TIME: about 40 seconds.",
-      "",
-      "Key message: the headline rate is the easy part. The risk and the costs behind it are the hard part.",
-      "",
-      "Talking points:",
-      "- If you hold USDC or USDT, finding a rate is easy. Every app shows you one big number.",
-      "- What's hard is everything behind it: options are spread across many protocols and networks.",
-      "- A higher APY can simply mean more risk.",
-      "- Network fees can wipe out the return on a small deposit. I'll show a real example in a minute.",
-      "- Security, liquidity, how long a protocol has been live, and how complex its strategy is are all hard to compare.",
-      "- Beginners don't have a framework for any of it.",
-      "",
-      "Note: no market statistics on this slide on purpose. The left card is a concept, not a real pool.",
-      "",
-      "Transition: So here's what StableSave does about it.",
-    ].join("\n"));
+    bullets(s, items, { x: RX, y: TOP + 0.45, w: RW, rowH: 0.62, fontSize: 15, gap: 0.12 });
+    items.slice(0, -1).forEach((_, i) => dashed(s, { x: RX + 0.32, y: TOP + 0.45 + (i + 1) * 0.74 - 0.08, w: RW - 0.32 }));
+    pageNumber(s);
+    s.addNotes(NOTES.problem);
   }
 
-  /* ---------- 3. Solution ---------- */
-  pres.addSection({ title: "Product" });
+  /* ---------- 3. Agenda ---------- */
   {
-    const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Product" });
-    s.addText([{ text: "One place to compare yield, risk,", options: { breakLine: true } }, { text: "and estimated net earnings" }], { placeholder: "title" });
-    const sh = shots["01-home-hero"];
-    const f = screenshot(s, sh.file, sh.px, { x: X0 + 0.1, y: TOP, w: 3.5, h: 4.75 }, { alt: "StableSave home screen: amount entry, estimated yearly earnings, and the risk preference selector", name: "shot-home" });
-    caption(s, "Real interface · local build, demo data", { x: f.x - 0.06, y: f.y + f.h + 0.12, w: f.w + 0.6 });
-
-    const steps = [
-      "Enter a stablecoin amount",
-      "Pick a risk preference",
-      "Compare the options",
-      "Check the grade and its reasons",
-      "See earnings after fees",
-      "Continue to the official app",
+    const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Opening" });
+    await title(s, "AGENDA", null, 12);
+    const rows = [
+      ["The comparison app", "Compare yield, risk and what you keep after fees. Live today."],
+      ["The Solana vault", "A separate devnet prototype where the program enforces the rules."],
+      ["Demo and what's next", "What works today, what's missing, and the order I'll fix it in."],
     ];
-    const SX = X0 + 4.3;
-    const colW = 3.6;
-    steps.forEach((label, i) => {
-      const col = i < 3 ? 0 : 1;
-      const row = i % 3;
-      const x = SX + col * (colW + 0.35);
-      const y = TOP + 0.05 + row * 0.98;
-      card(s, { x, y, w: colW, h: 0.8, fill: SURFACE, line: BORDER, radius: 0.12, name: `step-${i + 1}` });
-      numberBadge(s, { x: x + 0.22, y: y + 0.22, n: i + 1, color: i === 5 ? GREEN : PURPLE });
-      text(s, label, { x: x + 0.75, y: y + 0.1, w: colW - 0.9, h: 0.6, fontSize: 15, bold: true, valign: "middle" });
+    const LW = 7.4;
+    rows.forEach(([head, body], i) => {
+      const y = 2.45 + i * 1.22;
+      mono(s, `0${i + 1}`, { x: X0, y: y + 0.06, w: 0.6, h: 0.32, fontFace: MONO_SEMI, fontSize: 14, color: GREEN, charSpacing: 1 });
+      text(s, head, { x: X0 + 0.75, y, w: LW - 0.75, h: 0.42, fontSize: 22, bold: true });
+      text(s, body, { x: X0 + 0.75, y: y + 0.45, w: LW - 0.75, h: 0.35, fontSize: 14, color: HEX.sub });
+      dashed(s, { x: X0, y: y + 1.0, w: LW });
     });
-    // Two promises.
-    const PY = TOP + 3.15;
-    const pw = (colW * 2 + 0.35 - 0.3) / 2;
+    sticker(s, "coin", { x: 9.35, y: 2.2, w: 1.75, rotate: -10 });
+    sticker(s, "sprout", { x: 11.0, y: 3.2, w: 1.35, rotate: 12 });
+    sticker(s, "shield", { x: 9.75, y: 4.35, w: 1.35, rotate: 6 });
+    tape(s, "3 PARTS · 1 LIVE DEMO", { x: 9.45, y: 6.05, w: 2.8, h: 0.36, rotate: 3, color: GREEN, fontSize: 10 });
+    pageNumber(s);
+    s.addNotes(NOTES.agenda);
+  }
+
+  /* ---------- 4. Chapter 01 ---------- */
+  pres.addSection({ title: "Comparison app" });
+  await divider(1, "THE COMPARISON APP", "Live today: compare yield, risk and **what you keep after fees**.", [
+    { name: "sprout", x: 10.75, y: 0.95, w: 1.3, rotate: 14 },
+    { name: "coin", x: 1.2, y: 4.55, w: 1.45, rotate: -12 },
+    { name: "sparkle", x: 10.9, y: 5.35, w: 0.95, rotate: 0 },
+  ], NOTES.chapter1, "Comparison app");
+
+  /* ---------- 5. Solution ---------- */
+  {
+    const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Comparison app" });
+    await title(s, "ONE PLACE TO COMPARE", "Yield, risk and **what you keep after fees**, side by side.", 13);
+    const f = screenshot(s, "01-home-hero", { x: X0 + 0.1, y: TOP - 0.05, w: 3.0, h: 3.85 }, { alt: "StableSave home screen: amount entry, estimated yearly earnings, and the risk preference selector", name: "shot-home", rotate: -2 });
+    mono(s, "REAL INTERFACE · DEMO DATA", { x: X0, y: f.y + f.h + 0.22, w: 3.4, h: 0.25, fontSize: 8.5, color: "7A7A7A", align: "center", charSpacing: 1.5 });
+
+    const SX = X0 + 3.65;
+    const SW = 3.95;
+    label(s, "How it works", { x: SX, y: TOP, w: SW });
+    const steps = ["Enter a stablecoin amount", "Pick a risk preference", "Compare the options", "Check the grade and its reasons", "See earnings after fees", "Continue to the official app"];
+    steps.forEach((st, i) => {
+      const y = TOP + 0.42 + i * 0.6;
+      mono(s, `0${i + 1}`, { x: SX, y: y + 0.03, w: 0.5, h: 0.3, fontFace: MONO_SEMI, fontSize: 12, color: GREEN, charSpacing: 1 });
+      text(s, st, { x: SX + 0.55, y, w: SW - 0.55, h: 0.36, fontSize: 15, bold: true, valign: "middle" });
+      if (i < steps.length - 1) dashed(s, { x: SX, y: y + 0.48, w: SW });
+    });
+
+    const PX = SX + SW + 0.4;
+    const PW = W - X0 - PX;
     [
-      [ic.wallet, "No wallet or sign-up", "Comparing needs nothing but an amount."],
-      [ic.check, "Never holds your funds", "You deposit from your own wallet, on the protocol's own app."],
-    ].forEach(([img, head, body], i) => {
-      const x = SX + i * (pw + 0.3);
-      card(s, { x, y: PY, w: pw, h: 1.78, fill: RAISED, line: BORDER, radius: 0.14, name: `promise-${i}` });
-      s.addImage({ data: img, x: x + 0.3, y: PY + 0.3, w: 0.42, h: 0.42, altText: head });
-      text(s, head, { x: x + 0.3, y: PY + 0.8, w: pw - 0.6, h: 0.3, fontSize: 15, bold: true, color: GREEN });
-      text(s, body, { x: x + 0.3, y: PY + 1.1, w: pw - 0.5, h: 0.4, fontSize: 12.5, color: MUTED });
+      ["No wallet or sign-up", "Comparing needs nothing but an amount.", GREEN],
+      ["Never holds your funds", "You deposit from your own wallet, on the protocol's own app.", YELLOW],
+    ].forEach(([head, body, color], i) => {
+      const y = TOP + i * 1.98;
+      card(s, { x: PX, y, w: PW, h: 1.75, name: `promise-${i}` });
+      label(s, head, { x: PX + 0.3, y: y + 0.3, w: PW - 0.6, color });
+      text(s, body, { x: PX + 0.3, y: y + 0.7, w: PW - 0.6, h: 0.85, fontSize: 15 });
     });
-    s.addNotes([
-      "TIME: about 35 seconds.",
-      "",
-      "Key message: one screen shows the rate, the risk grade, and what you'd actually keep after fees.",
-      "",
-      "Talking points:",
-      "- You type an amount and choose a stablecoin. You pick how much risk you're comfortable with: Play it safe, Balanced, or Go bigger.",
-      "- StableSave ranks the options, gives each one an A to D grade with its reasons, and shows estimated earnings after network fees.",
-      "- When you're ready, it sends you to the protocol's official app. You deposit from your own wallet.",
-      "- Two promises: no wallet or sign-up just to compare, and StableSave never holds anyone's money in this flow.",
-      "",
-      "Honesty note: this screenshot is the real interface running locally with demo data, so the numbers are illustrative. The live site shows live DefiLlama data.",
-      "",
-      "Transition: Let me walk through the screens.",
-    ].join("\n"));
+    pageNumber(s);
+    s.addNotes(NOTES.solution);
   }
 
-  /* ---------- 4. Walkthrough ---------- */
+  /* ---------- 6. Walkthrough ---------- */
   {
-    const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Product" });
-    s.addText("From a balance to a more informed decision", { placeholder: "title" });
+    const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Comparison app" });
+    await title(s, "FROM BALANCE TO DECISION", "In a few clicks: **ranked, graded and after fees**.", 14);
     const boxY = TOP - 0.05;
-    const boxH = 4.3;
-    const a = shots["01-home-hero"];
-    const b = shots["02-options-list"];
-    const c = shots["03-detail-rate"];
-    const fa = screenshot(s, a.file, a.px, { x: X0 + 0.15, y: boxY, w: 2.45, h: boxH }, { alt: "Amount, stablecoin and risk preference", name: "walk-home" });
-    const fb = screenshot(s, b.file, b.px, { x: X0 + 2.95, y: boxY, w: 4.2, h: boxH }, { alt: "Ranked options with grade, network, deposits, rate and yearly estimate", name: "walk-list" });
-    const fc = screenshot(s, c.file, c.px, { x: X0 + 7.45, y: boxY, w: 2.2, h: boxH }, { alt: "Option detail: rate history, and what $1,000 could earn after fees", name: "walk-detail" });
-
-    // Numbered callouts placed on the features they point at.
+    const boxH = 3.55;
+    const fa = screenshot(s, "01-home-hero", { x: X0 + 0.25, y: boxY, w: 2.2, h: boxH }, { alt: "Amount, stablecoin and risk preference", name: "walk-home" });
+    const fb = screenshot(s, "02-options-list", { x: X0 + 2.85, y: boxY, w: 3.6, h: boxH }, { alt: "Ranked options with grade, network, deposits, rate and yearly estimate", name: "walk-list" });
+    const fc = screenshot(s, "03-detail-rate", { x: X0 + 6.75, y: boxY, w: 2.0, h: boxH }, { alt: "Option detail: rate history, and what $1,000 could earn after fees", name: "walk-detail" });
     numberBadge(s, { x: fa.x - 0.24, y: fa.y + fa.h * 0.335, n: 1 });
     numberBadge(s, { x: fa.x - 0.24, y: fa.y + fa.h * 0.895, n: 2 });
     numberBadge(s, { x: fb.x + fb.w - 0.14, y: fb.y - 0.16, n: 3 });
@@ -359,453 +451,268 @@ async function main() {
     numberBadge(s, { x: fc.x - 0.24, y: fc.y + fc.h * 0.37, n: 5 });
     numberBadge(s, { x: fc.x - 0.24, y: fc.y + fc.h * 0.72, n: 6 });
 
-    // Legend on the right.
-    const LX = X0 + 9.95;
+    const LX = X0 + 9.2;
     const legend = [
       ["Amount", "$1,000 of USDC here"],
       ["Risk preference", "Safe, Balanced or Bigger"],
-      ["Ranked options", "Sort: best fit, rate, safety"],
+      ["Ranked options", "Best fit, rate or safety"],
       ["A–D grade", "Next to network, deposits"],
       ["Rate history", "30 or 90 days, daily"],
       ["After fees", "What you'd keep a year"],
     ];
     legend.forEach(([head, body], i) => {
-      const y = boxY + i * 0.74;
-      numberBadge(s, { x: LX, y: y + 0.02, n: i + 1, d: 0.3, fontSize: 11 });
-      text(s, head, { x: LX + 0.42, y, w: 1.75, h: 0.3, fontSize: 13, bold: true });
-      text(s, body, { x: LX + 0.42, y: y + 0.3, w: 1.75, h: 0.3, fontSize: 10.5, color: MUTED });
+      const y = boxY + i * 0.6;
+      numberBadge(s, { x: LX, y: y + 0.03, n: i + 1, d: 0.3, fontSize: 10 });
+      text(s, head, { x: LX + 0.42, y, w: 2.2, h: 0.28, fontSize: 13, bold: true });
+      text(s, body, { x: LX + 0.42, y: y + 0.27, w: 2.2, h: 0.26, fontSize: 11, color: MUTED });
     });
-
-    // Worked example strip.
-    const EY = boxY + boxH + 0.3;
-    card(s, { x: X0, y: EY, w: CW, h: 0.62, fill: RAISED, line: BORDER, radius: 0.1, name: "worked-example" });
-    text(s, [
-      { text: "Worked example (demo data):  ", options: { bold: true, color: INK } },
-      { text: "$1,000 USDC, Balanced → 8.33% → ", options: { color: MUTED } },
-      { text: "about +$83 a year after fees", options: { color: GREEN, bold: true } },
-      { text: ". Estimated, not promised.", options: { color: MUTED } },
-    ], { x: X0 + 0.3, y: EY + 0.08, w: CW - 0.6, h: 0.46, fontSize: 13, valign: "middle" });
-    s.addNotes([
-      "TIME: about 45 seconds.",
-      "",
-      "Key message: in a few clicks you go from a balance to a ranked, graded, fee-adjusted choice.",
-      "",
-      "Walk the numbers on the slide:",
-      "1. Enter the amount and stablecoin. Here, $1,000 of USDC.",
-      "2. Pick a risk preference. Balanced is selected.",
-      "3. Options are ranked for that preference.",
-      "4. Every row shows its A to D grade, network and deposits, plus the rate and a yearly estimate.",
-      "5. Open any option: you get 30 or 90 days of daily rate history, so you can see whether today's rate is normal.",
-      "6. And what $1,000 could earn after the network fees to get in and out.",
-      "",
-      "The detail panel then explains the grade factor by factor (\"How risky is it?\"), adds a plain risk warning, steps to deposit safely, and quick facts. Note: the review guide calls these \"Why this grade?\" and \"What could go wrong?\". The current interface uses the new headings.",
-      "",
-      "Honesty: the worked example uses demo data. Say \"estimated\" every time. Rates change.",
-      "",
-      "Transition: The grade is the core of this, so here's how it works.",
-    ].join("\n"));
+    callout(s, [
+      { text: "Worked example (demo data): ", options: { bold: true, color: INK } },
+      { text: "$1,000 USDC, Balanced, 8.33%: " },
+      { text: "about +$83 a year after fees", options: { bold: true, color: GREEN } },
+      { text: ". Estimated, not promised." },
+    ], { x: X0, y: boxY + boxH + 0.3, w: CW, h: 0.5, tone: "green" });
+    pageNumber(s);
+    s.addNotes(NOTES.walkthrough);
   }
 
-  /* ---------- 5. Risk engine ---------- */
+  /* ---------- 7. Risk engine ---------- */
   {
-    const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Product" });
-    s.addText("A high APY should never tell the whole story", { placeholder: "title" });
-
+    const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Comparison app" });
+    await title(s, "HOW THE GRADE WORKS", "A high APY should never tell the whole story: **the weakest factor always counts**.", 15);
     const factors = [
-      ["Protocol maturity", 14],
-      ["Smart contract security", 14],
-      ["Total value locked", 12],
-      ["Liquidity", 12],
-      ["Incident history", 12],
-      ["Strategy complexity", 10],
-      ["Oracle dependencies", 9],
-      ["Concentration", 9],
-      ["Yield stability", 8],
+      ["Protocol maturity", 14], ["Smart contract security", 14], ["Total value locked", 12], ["Liquidity", 12], ["Incident history", 12],
+      ["Strategy complexity", 10], ["Oracle dependencies", 9], ["Concentration", 9], ["Yield stability", 8],
     ];
-    card(s, { x: X0, y: TOP, w: 6.2, h: 4.95, fill: SURFACE, line: BORDER, name: "weights-card" });
-    text(s, "Nine factors, weighted (% of the score)", { x: X0 + 0.3, y: TOP + 0.22, w: 5.6, h: 0.35, fontSize: 15, bold: true });
+    card(s, { x: X0, y: TOP, w: 5.75, h: 4.15, name: "weights-card" });
+    label(s, "Nine factors · % of the score", { x: X0 + 0.3, y: TOP + 0.25, w: 5.2 });
     s.addChart(pres.ChartType.bar, [{ name: "Weight", labels: factors.map((f) => f[0]).reverse(), values: factors.map((f) => f[1]).reverse() }], {
-      x: X0 + 0.15, y: TOP + 0.6, w: 5.9, h: 4.25,
-      barDir: "bar",
-      chartColors: [HEX.purple],
-      barGapWidthPct: 45,
-      showValue: true,
-      dataLabelPosition: "outEnd",
-      dataLabelColor: HEX.white,
-      dataLabelFontSize: 11,
-      dataLabelFontFace: "+mn-lt",
-      dataLabelFormatCode: '0"%"',
-      catAxisLabelColor: HEX.white,
-      catAxisLabelFontSize: 11.5,
-      catAxisLabelFontFace: "+mn-lt",
-      catAxisLineShow: false,
-      valAxisHidden: true,
-      valAxisMaxVal: 16,
-      valAxisMinVal: 0,
-      valGridLine: { style: "none" },
-      catGridLine: { style: "none" },
-      showLegend: false,
-      showTitle: false,
-      objectName: "weights-chart",
+      x: X0 + 0.12, y: TOP + 0.55, w: 5.5, h: 3.5,
+      barDir: "bar", chartColors: [HEX.green], barGapWidthPct: 45,
+      showValue: true, dataLabelPosition: "outEnd", dataLabelColor: HEX.white, dataLabelFontSize: 11, dataLabelFontFace: "+mn-lt", dataLabelFormatCode: '0"%"',
+      catAxisLabelColor: HEX.white, catAxisLabelFontSize: 11.5, catAxisLabelFontFace: "+mn-lt", catAxisLineShow: false,
+      valAxisHidden: true, valAxisMaxVal: 16, valAxisMinVal: 0, valGridLine: { style: "none" }, catGridLine: { style: "none" },
+      showLegend: false, showTitle: false, objectName: "weights-chart",
     });
 
-    const RX = X0 + 6.55;
-    const RW = CW - 6.55;
-    // Formula
-    card(s, { x: RX, y: TOP, w: RW, h: 1.72, fill: RAISED, line: BORDER, name: "formula-card" });
-    text(s, "HOW THE SCORE IS BUILT", { x: RX + 0.3, y: TOP + 0.2, w: RW - 0.6, h: 0.28, fontSize: 10.5, bold: true, color: MUTED, charSpacing: 2 });
+    const RX = X0 + 6.1;
+    const RW = CW - 6.1;
+    card(s, { x: RX, y: TOP, w: RW, h: 1.3, name: "formula-card" });
+    label(s, "How the score is built", { x: RX + 0.3, y: TOP + 0.2, w: RW - 0.6, color: YELLOW });
     text(s, [
-      { text: "Score = ", options: { color: INK } },
-      { text: "75%", options: { color: PURPLE, bold: true } },
-      { text: " weighted average", options: { color: INK, breakLine: true } },
-      { text: "      + ", options: { color: INK } },
-      { text: "25%", options: { color: AMBER, bold: true } },
-      { text: " weakest factor", options: { color: INK } },
-    ], { x: RX + 0.3, y: TOP + 0.5, w: RW - 0.6, h: 0.75, fontSize: 17, bold: true });
-    text(s, "So one bad area pulls the grade down.", { x: RX + 0.3, y: TOP + 1.3, w: RW - 0.6, h: 0.3, fontSize: 12.5, color: MUTED });
+      { text: "Score = " },
+      { text: "75%", options: { color: GREEN } },
+      { text: " weighted average", options: { breakLine: true } },
+      { text: "          + " },
+      { text: "25%", options: { color: ORANGE } },
+      { text: " weakest factor" },
+    ], { x: RX + 0.3, y: TOP + 0.5, w: RW - 0.6, h: 0.68, fontSize: 17, bold: true, valign: "middle" });
 
-    // Grade bands
-    const bands = [["A", "80+", GREEN], ["B", "65–79", "D7C65E"], ["C", "50–64", "E8955C"], ["D", "<50", RED]];
+    const bands = [["A", "80+", GREEN, -2], ["B", "65–79", YELLOW, 1.5], ["C", "50–64", ORANGE, -1], ["D", "<50", HEX.red, 2]];
     const bw = (RW - 0.45) / 4;
-    bands.forEach(([g, range, col], i) => {
-      const x = RX + i * (bw + 0.15);
-      const y = TOP + 1.9;
-      card(s, { x, y, w: bw, h: 0.95, fill: SURFACE, line: col, radius: 0.12, name: `band-${g}` });
-      text(s, g, { x, y: y + 0.08, w: bw, h: 0.48, fontSize: 24, bold: true, color: col, align: "center" });
-      text(s, range, { x, y: y + 0.56, w: bw, h: 0.3, fontSize: 12, color: MUTED, align: "center" });
+    bands.forEach(([g, range, col, rot], i) => {
+      s.addText([
+        { text: g, options: { fontFace: DISPLAY, fontSize: 38, color: col, breakLine: true } },
+        { text: range, options: { fontFace: MONO, fontSize: 10, color: HEX.sub, charSpacing: 1.5 } },
+      ], {
+        shape: S.roundRect, rectRadius: 0.1, x: RX + i * (bw + 0.15), y: TOP + 1.55, w: bw, h: 1.02, rotate: rot,
+        fill: { color: SURFACE }, line: { color: BORDER, width: 1.25 }, shadow: hardShadow(),
+        align: "center", valign: "middle", margin: 2, lineSpacingMultiple: 0.9, isTextBox: true, objectName: `band-${g}`,
+      });
     });
-
-    // Example
-    const EY = TOP + 3.0;
-    card(s, { x: RX, y: EY, w: RW, h: 1.32, fill: SURFACE, line: BORDER, name: "example-card" });
-    text(s, "ONE WEAK FACTOR (DEMO DATA)", { x: RX + 0.3, y: EY + 0.18, w: RW - 0.6, h: 0.28, fontSize: 10.5, bold: true, color: AMBER, charSpacing: 2 });
-    text(s, [
-      { text: "Kamino JLP Market: weighted average ", options: { color: MUTED } },
-      { text: "81", options: { color: GREEN, bold: true } },
-      { text: " (an A on its own). Concentration scores ", options: { color: MUTED } },
-      { text: "37", options: { color: RED, bold: true } },
-      { text: ", so the final score is ", options: { color: MUTED } },
-      { text: "70: grade B", options: { color: INK, bold: true } },
-      { text: ".", options: { color: MUTED } },
-    ], { x: RX + 0.3, y: EY + 0.48, w: RW - 0.6, h: 0.8, fontSize: 13.5, lineSpacingMultiple: 1.05 });
-
-    // Caps + unknowns
-    text(s, [
-      { text: "Hard caps can override the score ", options: { bold: true, color: INK } },
-      { text: "(e.g. no public audits: at most C). Inputs the data doesn't cover are marked \"Not verified\" and scored cautiously, never guessed.", options: { color: MUTED } },
-    ], { x: RX, y: EY + 1.44, w: RW, h: 0.62, fontSize: 12 });
-    s.addNotes([
-      "TIME: about 50 seconds.",
-      "",
-      "Key message: the grade can't be gamed by one shiny number, because the weakest factor always counts.",
-      "",
-      "Talking points:",
-      "- Every option gets a score from 0 to 100 across nine factors. The biggest weights are protocol maturity and smart contract security at 14% each. Yield stability is the smallest at 8%.",
-      "- 75% of the score is the weighted average. The other 25% is the single weakest factor. That's deliberate: one bad area should pull the grade down.",
-      "- Scores map to grades: A is 80 and above, B 65 to 79, C 50 to 64, D below 50.",
-      "- Hard caps override the number. No public audits, unrepaid losses or a first-loss insurance fund: at most C. Live under six months, or one key can change the code: at most C+. 98% or more lent out: at most B minus. Three or more unverified inputs: at most B.",
-      "- If the data doesn't cover an input, it's labelled Not verified and scored cautiously. Never guessed.",
-      "",
-      "The example is from the demo data on screen: an average of 81 would be an A, but concentration scores 37, so the final score is 70, a B. (0.75 x 81 + 0.25 x 37 = 70.)",
-      "",
-      "Be honest if asked: the weights are my judgement. I haven't back-tested them against past exploits yet. That's on the roadmap.",
-      "",
-      "Transition: The other half of a good decision is cost.",
-    ].join("\n"));
+    callout(s, [
+      { text: "One weak factor (demo data): ", options: { bold: true, color: INK } },
+      { text: "Kamino JLP Market averages " },
+      { text: "81", options: { bold: true, color: GREEN } },
+      { text: ", an A on its own. Concentration scores " },
+      { text: "37", options: { bold: true, color: HEX.red } },
+      { text: ", so the final score is " },
+      { text: "70: grade B", options: { bold: true, color: INK } },
+      { text: "." },
+    ], { x: RX, y: TOP + 2.85, w: RW, h: 0.8, tone: "yellow" });
+    text(s, rich("**Hard caps** can override the score (no public audits: at most C). Inputs the data doesn't cover are marked \"Not verified\" and scored cautiously, never guessed.", MUTED), {
+      x: RX, y: TOP + 3.75, w: RW, h: 0.45, fontSize: 11,
+    });
+    pageNumber(s);
+    s.addNotes(NOTES.risk);
   }
 
-  /* ---------- 6. Net earnings ---------- */
+  /* ---------- 8. Net earnings ---------- */
   {
-    const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Product" });
-    s.addText("The return that matters is the return after costs", { placeholder: "title" });
-    const sh = shots["05-fees-ethereum-100"];
-    const f = screenshot(s, sh.file, sh.px, { x: X0 + 0.06, y: TOP + 0.06, w: 7.4, h: 2.45 }, { alt: "Filtered to Ethereum with $100: Aave V3 at 4.10% shows minus $7.90 a year and the note 'Fees cost more than you'd earn'", name: "shot-fees" });
-    caption(s, "Real interface · local build, demo data · $100 of USDC, Ethereum", { x: f.x, y: f.y + f.h + 0.1, w: 7 });
-    const NX = X0 + 7.85;
-    const NW = CW - 7.85;
-    card(s, { x: NX, y: TOP, w: NW, h: f.h + 0.12, fill: SURFACE, line: AMBER, name: "fees-callout" });
-    text(s, "MARKED, NOT HIDDEN", { x: NX + 0.3, y: TOP + 0.25, w: NW - 0.6, h: 0.28, fontSize: 10.5, bold: true, color: AMBER, charSpacing: 2 });
-    text(s, [
-      { text: "$100 at 4.10% earns about $4.10 a year. Getting in and out of Ethereum is estimated at $12. ", options: { color: INK } },
-      { text: "So the app says: \"Fees cost more than you'd earn.\"", options: { color: AMBER, bold: true } },
-    ], { x: NX + 0.3, y: TOP + 0.65, w: NW - 0.55, h: 1.75, fontSize: 14, lineSpacingMultiple: 1.1 });
+    const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Comparison app" });
+    await title(s, "THE RETURN AFTER COSTS", "On a small deposit, **fees can cost more than you earn**.", 16);
+    const f = screenshot(s, "05-fees-ethereum-100", { x: X0 + 0.05, y: TOP + 0.05, w: 6.55, h: 2.2 }, { alt: "Filtered to Ethereum with $100: Aave V3 at 4.10% shows minus $7.90 a year and the note 'Fees cost more than you'd earn'", name: "shot-fees", rotate: -1.2 });
+    mono(s, "REAL INTERFACE · LOCAL BUILD, DEMO DATA · $100 OF USDC, ETHEREUM", { x: X0, y: f.y + f.h + 0.2, w: 6.6, h: 0.25, fontSize: 8.5, color: "7A7A7A", charSpacing: 1.5 });
+    callout(s, [
+      { text: "Marked, not hidden: ", options: { bold: true, color: YELLOW } },
+      { text: "$100 at 4.10% earns about $4.10 a year. Getting in and out of Ethereum is estimated at $12, so the app says " },
+      { text: "\"Fees cost more than you'd earn.\"", options: { bold: true, color: INK } },
+    ], { x: X0, y: TOP + 2.85, w: 6.6, h: 1.0, tone: "yellow" });
 
-    // Two ledgers: same rate, same $100, two networks.
-    const LY = f.y + f.h + 0.5;
-    const cols = ["Headline rate", "A year's interest", "Network fees (est.)", "What you keep"];
-    const rows = [
-      ["Ethereum", "4.10%", "$4.10", "−$12.00", "−$7.90", RED],
-      ["Solana", "4.10%", "$4.10", "−$0.02", "+$4.08", GREEN],
-    ];
-    const labelW = 1.8;
-    const cw = (CW - labelW) / 4;
-    cols.forEach((h, i) => text(s, h, { x: X0 + labelW + i * cw - 0.15, y: LY, w: cw - 0.1, h: 0.3, fontSize: 11.5, bold: true, color: MUTED, align: "right" }));
-    rows.forEach(([net, rate, gross, fee, keep, col], r) => {
-      const y = LY + 0.36 + r * 0.66;
-      card(s, { x: X0, y, w: CW, h: 0.56, fill: SURFACE, line: BORDER, radius: 0.1, name: `ledger-${net}` });
-      text(s, net, { x: X0 + 0.25, y: y + 0.08, w: labelW - 0.3, h: 0.4, fontSize: 15, bold: true, valign: "middle" });
-      [rate, gross, fee, keep].forEach((v, i) => text(s, v, {
-        x: X0 + labelW + i * cw - 0.15, y: y + 0.08, w: cw - 0.1, h: 0.4, fontSize: 16, align: "right", valign: "middle",
-        bold: i === 3, color: i === 3 ? col : i === 2 ? AMBER : INK,
-      }));
+    const RX = X0 + 7.1;
+    const RW = CW - 7.1;
+    [
+      ["ETHEREUM · $100 AT 4.10%", "−$7.90", HEX.red, "$4.10 interest − $12.00 network fees (est.)", 1.5],
+      ["SOLANA · $100 AT 4.10%", "+$4.08", GREEN, "$4.10 interest − $0.02 network fees (est.)", -1.5],
+    ].forEach(([head, value, col, body, rot], i) => {
+      s.addText([
+        { text: head, options: { fontFace: MONO, fontSize: 10, color: HEX.sub, charSpacing: 2, breakLine: true } },
+        { text: value, options: { fontFace: DISPLAY, fontSize: 52, color: col, breakLine: true } },
+        { text: body, options: { fontSize: 13, color: INK } },
+      ], {
+        shape: S.roundRect, rectRadius: 0.12, x: RX, y: TOP + 0.05 + i * 2.05, w: RW, h: 1.8, rotate: rot,
+        fill: { color: SURFACE }, line: { color: BORDER, width: 1.25 }, shadow: hardShadow(),
+        align: "center", valign: "middle", margin: 4, lineSpacingMultiple: 0.95, isTextBox: true, objectName: `ledger-${i}`,
+      });
     });
-    text(s, "Illustrative: $100 at the same 4.10% rate, using StableSave's per-network fee estimates for one deposit and one withdrawal. Estimates, not live gas prices.", {
-      x: X0, y: LY + 1.78, w: CW, h: 0.3, fontSize: 11, italic: true, color: MUTED,
+    mono(s, "Illustrative: the same 4.10% with StableSave's per-network fee estimates for one deposit and one withdrawal. Estimates, not live gas prices.", {
+      x: X0, y: 6.42, w: CW, h: 0.3, fontSize: 9, color: "7A7A7A", charSpacing: 0.5,
     });
-    s.addNotes([
-      "TIME: about 35 seconds.",
-      "",
-      "Key message: a good rate on an expensive network can lose you money on a small deposit.",
-      "",
-      "Talking points:",
-      "- This is the example from my review guide: enter $100 and filter to Ethereum.",
-      "- At 4.10%, $100 earns about $4.10 in a year. StableSave's estimate for getting in and out on Ethereum is about $12. So you'd be $7.90 down, and the app marks the option: \"Fees cost more than you'd earn\".",
-      "- The same rate on Solana, where the estimate is about two cents, keeps about $4.08.",
-      "- That's why ranking uses yield after fees, so small deposits aren't sent to expensive networks.",
-      "",
-      "Be precise: the screenshot uses demo data, and the Solana row is an illustration at the same rate. Network fees are fixed per-network estimates for one deposit and one withdrawal, not live gas prices. Bridging costs aren't counted yet.",
-      "",
-      "Transition: Fees are one question. Here are four more the app now answers.",
-    ].join("\n"));
+    pageNumber(s);
+    s.addNotes(NOTES.fees);
   }
 
-  /* ---------- 7. New in the comparison app ---------- */
+  /* ---------- 9. New in the comparison app ---------- */
   {
-    const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Product" });
-    s.addText("Four more questions answered before you deposit", { placeholder: "title" });
+    const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Comparison app" });
+    await title(s, "FOUR MORE QUESTIONS", "Answered **before you deposit**.", 17);
     const gap = 0.3;
     const cw = (CW - gap) / 2;
-    const ch = 2.3;
-    const TX = 2.4; // text column width inside a card
+    const ch = 1.82;
+    const TX = 2.45;
     const features = [
-      {
-        label: "FIND IDLE MONEY", q: "Is money sitting idle in my wallet?",
-        body: "Paste any Solana address: read-only, and it fills the calculator.",
-        shot: "08-idle-money", alt: "Find idle money: this wallet holds $1,240.51 USDC and $300 USDT, earning nothing; about +$103 a year on Kamino",
-      },
-      {
-        label: "CAN I WITHDRAW TODAY?", q: "Can I get my money out today?",
-        body: "Cash free in the lending pool right now, versus your amount.",
-        shot: "10-withdraw-today", alt: "Can I withdraw today? Yes, today: $31.8M is free to withdraw right now; 87% of the pool is lent out",
-      },
-      {
-        label: "US T-BILL COMPARISON", q: "Is it worth the crypto risk?",
-        body: "Every list starts with US Treasury bills, from the Treasury's own data.",
-        chart: true,
-      },
-      {
-        label: "SHARE MY ESTIMATE", q: "Can I show someone?",
-        body: "One click copies a link that previews as this card.",
-        shot: "11-share-card", alt: "Share card: On $1,000 USDC, I could earn +$83.28 a year at 8.33% on Kamino, Solana, grade B",
-      },
+      { label: "Find idle money", color: GREEN, q: "Is money sitting idle in my wallet?", body: "Paste any Solana address: read-only, and it fills the calculator.", shot: "08-idle-money", alt: "Find idle money: this wallet holds $1,240.51 USDC and $300 USDT, earning nothing; about +$103 a year on Kamino" },
+      { label: "Can I withdraw today?", color: YELLOW, q: "Can I get my money out today?", body: "Cash free in the lending pool right now, versus your amount.", shot: "10-withdraw-today", alt: "Can I withdraw today? Yes, today: $31.8M is free to withdraw right now; 87% of the pool is lent out" },
+      { label: "US T-bill comparison", color: PURPLE, q: "Is it worth the crypto risk?", body: "Every list starts with US Treasury bills, from the Treasury's own data.", chart: true },
+      { label: "Share my estimate", color: ORANGE, q: "Can I show someone?", body: "One click copies a link that previews as this card.", shot: "11-share-card", alt: "Share card: On $1,000 USDC, I could earn +$83.28 a year at 8.33% on Kamino, Solana, grade B" },
     ];
     features.forEach((ft, i) => {
       const x = X0 + (i % 2) * (cw + gap);
       const y = TOP + Math.floor(i / 2) * (ch + gap);
-      card(s, { x, y, w: cw, h: ch, fill: SURFACE, line: BORDER, name: `feature-${i}` });
-      text(s, ft.label, { x: x + 0.3, y: y + 0.28, w: TX, h: 0.26, fontSize: 10, bold: true, color: GREEN, charSpacing: 1.5 });
-      text(s, ft.q, { x: x + 0.3, y: y + 0.62, w: TX - 0.1, h: 0.62, fontSize: 16, bold: true, lineSpacingMultiple: 0.95 });
-      text(s, ft.body, { x: x + 0.3, y: y + 1.33, w: TX - 0.1, h: 0.78, fontSize: 11.5, color: MUTED, lineSpacingMultiple: 1.05 });
-      const box = { x: x + TX + 0.5, y: y + 0.2, w: cw - TX - 0.7, h: ch - 0.4 };
+      card(s, { x, y, w: cw, h: ch, name: `feature-${i}` });
+      label(s, ft.label, { x: x + 0.28, y: y + 0.22, w: TX, color: ft.color, size: 9.5 });
+      text(s, ft.q, { x: x + 0.28, y: y + 0.5, w: TX - 0.1, h: 0.55, fontSize: 15, bold: true, lineSpacingMultiple: 0.95 });
+      text(s, ft.body, { x: x + 0.28, y: y + 1.1, w: TX - 0.1, h: 0.6, fontSize: 11.5, color: MUTED });
+      const box = { x: x + TX + 0.4, y: y + 0.18, w: cw - TX - 0.6, h: ch - 0.36 };
       if (ft.chart) {
         // Demo data, same as the screenshots: T-bills vs the top options for $1,000, Balanced.
         const rows = [["US T-bills", 4.0], ["Kamino · A", 5.15], ["Drift · A", 5.57], ["Kamino JLP · B", 8.33]];
         s.addChart(pres.ChartType.bar, [{ name: "Rate", labels: rows.map((r) => r[0]).reverse(), values: rows.map((r) => r[1]).reverse() }], {
-          ...box,
-          barDir: "bar",
-          chartColors: [HEX.purple, HEX.purple, HEX.purple, HEX.muted],
-          barGapWidthPct: 40,
-          showValue: true,
-          dataLabelPosition: "outEnd",
-          dataLabelColor: HEX.white,
-          dataLabelFontSize: 11,
-          dataLabelFontFace: "+mn-lt",
-          dataLabelFormatCode: '0.00"%"',
-          catAxisLabelColor: HEX.white,
-          catAxisLabelFontSize: 11,
-          catAxisLabelFontFace: "+mn-lt",
-          catAxisLineShow: false,
-          valAxisHidden: true,
-          valAxisMinVal: 0,
-          valAxisMaxVal: 10.5,
-          valGridLine: { style: "none" },
-          catGridLine: { style: "none" },
-          showLegend: false,
-          showTitle: false,
-          objectName: "tbill-chart",
+          ...box, barDir: "bar", chartColors: [HEX.green, HEX.green, HEX.green, HEX.muted], barGapWidthPct: 40,
+          showValue: true, dataLabelPosition: "outEnd", dataLabelColor: HEX.white, dataLabelFontSize: 10, dataLabelFontFace: "+mn-lt", dataLabelFormatCode: '0.00"%"',
+          catAxisLabelColor: HEX.white, catAxisLabelFontSize: 10, catAxisLabelFontFace: "+mn-lt", catAxisLineShow: false,
+          valAxisHidden: true, valAxisMinVal: 0, valAxisMaxVal: 10.5, valGridLine: { style: "none" }, catGridLine: { style: "none" },
+          showLegend: false, showTitle: false, objectName: "tbill-chart",
         });
       } else {
         const sh = shots[ft.shot];
         const f = fit(sh.px, box);
-        card(s, { x: f.x - 0.04, y: f.y - 0.04, w: f.w + 0.08, h: f.h + 0.08, fill: NAVY, line: BORDER, radius: 0.08, name: `${ft.shot}-frame` });
+        s.addShape(S.roundRect, { x: f.x - 0.04, y: f.y - 0.04, w: f.w + 0.08, h: f.h + 0.08, rectRadius: 0.06, fill: { color: "0E0E0E" }, line: { color: BORDER, width: 1 } });
         s.addImage({ path: sh.file, ...f, altText: ft.alt, objectName: ft.shot });
       }
     });
-    caption(s, "Real interface · local build, demo data · the wallet scan used a stand-in balance", { x: X0, y: TOP + 2 * ch + gap + 0.12, w: CW });
-    s.addNotes([
-      "TIME: about 35 seconds.",
-      "",
-      "Key message: the app now answers the questions people ask right after \"what's the rate?\", before they move any money.",
-      "",
-      "Talking points:",
-      "- Is money sitting idle? Paste any Solana address. StableSave reads its USDC and USDT, read-only, nothing to sign, and drops the amount into the calculator. Most people have stablecoins doing nothing.",
-      "- Can I get it out today? For lending pools it compares the cash that's free right now with your amount, using the pool's own supply and borrow numbers. Yes today, likely, tight, or wait.",
-      "- Is it worth the risk? Every list starts with US Treasury bills, straight from the US Treasury's data. If an option barely beats T-bills, the extra crypto risk may not be worth it.",
-      "- Can I show someone? \"Share my estimate\" copies a link that unfurls as a card with the estimate. That's how this spreads.",
-      "",
-      "Honesty: demo data on the slide. The T-bill chart uses the demo figure (4.00%) and the same demo options as the screenshots; the live site uses the Treasury's latest average rate. The wallet result is a stand-in balance captured locally.",
-      "",
-      "Transition: That's the comparison app, which is live. Now the second, separate part: the Solana vault.",
-    ].join("\n"));
+    mono(s, "REAL INTERFACE · LOCAL BUILD, DEMO DATA · THE WALLET SCAN USED A STAND-IN BALANCE", { x: X0, y: TOP + 2 * ch + gap + 0.12, w: CW, h: 0.25, fontSize: 8.5, color: "7A7A7A", charSpacing: 1.5 });
+    pageNumber(s);
+    s.addNotes(NOTES.questions);
   }
 
-  /* ---------- 8. Solana engineering ---------- */
+  /* ---------- 10. Chapter 02 ---------- */
   pres.addSection({ title: "Solana vault" });
+  await divider(2, "THE SOLANA VAULT", "A separate **devnet prototype**: the program enforces the rules.", [
+    { name: "vault", x: 10.7, y: 1.0, w: 1.35, rotate: 10 },
+    { name: "shield", x: 1.25, y: 4.6, w: 1.3, rotate: -10 },
+    { name: "bolt", x: 11.0, y: 5.35, w: 0.95, rotate: 8 },
+  ], NOTES.chapter2, "Solana vault");
+
+  /* ---------- 11. Solana engineering ---------- */
   {
     const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Solana vault" });
-    s.addText([{ text: "A separate Anchor vault prototype", options: { breakLine: true } }, { text: "brings the project on-chain" }], { placeholder: "title" });
+    await title(s, "THE VAULT PROGRAM", "A separate Anchor prototype on devnet: **the program enforces the rules**.", 18);
+    const y0 = TOP;
+    const UW = { x: X0, y: y0 + 0.8, w: 2.1, h: 1.5 };
+    card(s, { ...UW, fill: RAISED, name: "wallet" });
+    s.addImage({ data: ic.wallet, x: UW.x + 0.25, y: UW.y + 0.22, w: 0.4, h: 0.4, altText: "Wallet" });
+    text(s, "User wallet", { x: UW.x + 0.25, y: UW.y + 0.72, w: UW.w - 0.4, h: 0.3, fontSize: 15, bold: true });
+    text(s, "Signs every user action", { x: UW.x + 0.25, y: UW.y + 1.03, w: UW.w - 0.4, h: 0.3, fontSize: 11, color: MUTED });
+    tape(s, "DEVNET · UNAUDITED", { x: UW.x - 0.05, y: UW.y + UW.h + 0.45, w: 2.2, h: 0.34, rotate: -3, fontSize: 9 });
+    tape(s, "PRACTICE POOLS", { x: UW.x + 0.15, y: UW.y + UW.h + 0.92, w: 1.8, h: 0.34, rotate: 2, color: PURPLE, textColor: HEX.ink, fontSize: 9 });
 
-    const y0 = TOP + 0.1;
-    // User wallet
-    const UW = { x: X0, y: y0 + 1.05, w: 2.15, h: 1.6 };
-    card(s, { ...UW, fill: RAISED, line: BORDER, name: "wallet" });
-    s.addImage({ data: ic.wallet, x: UW.x + 0.25, y: UW.y + 0.25, w: 0.42, h: 0.42, altText: "Wallet" });
-    text(s, "User wallet", { x: UW.x + 0.25, y: UW.y + 0.78, w: UW.w - 0.4, h: 0.3, fontSize: 15, bold: true });
-    text(s, "Signs every user action", { x: UW.x + 0.25, y: UW.y + 1.1, w: UW.w - 0.4, h: 0.3, fontSize: 11, color: MUTED });
-    // Status, kept in sight next to the diagram.
-    const SY = UW.y + UW.h + 0.45;
-    card(s, { x: UW.x, y: SY, w: UW.w, h: 1.25, fill: SURFACE, line: AMBER, name: "status-card" });
-    text(s, ["Devnet prototype", "Unaudited", "Practice pools"].map((t, k, all) => ({ text: t, options: { breakLine: k < all.length - 1 } })), {
-      x: UW.x + 0.25, y: SY + 0.15, w: UW.w - 0.4, h: 0.95, fontSize: 13, bold: true, color: AMBER, valign: "middle", paraSpaceAfter: 2,
-    });
-
-    // Program box
-    const P = { x: X0 + 3.25, y: y0, w: 4.55, h: 4.85 };
-    card(s, { ...P, fill: SURFACE, line: PURPLE, name: "program" });
-    s.addImage({ data: ic.code, x: P.x + 0.3, y: P.y + 0.25, w: 0.4, h: 0.4, altText: "Program" });
-    text(s, "StableSave Vault program", { x: P.x + 0.82, y: P.y + 0.22, w: P.w - 1, h: 0.3, fontSize: 15, bold: true });
-    text(s, "Anchor · Solana devnet · 16 instructions", { x: P.x + 0.82, y: P.y + 0.52, w: P.w - 1, h: 0.28, fontSize: 11, color: MUTED });
-    text(s, "PROGRAM-ENFORCED CHECKS", { x: P.x + 0.3, y: P.y + 1.0, w: P.w - 0.6, h: 0.28, fontSize: 10, bold: true, color: GREEN, charSpacing: 2 });
-    const checks = [
+    const P = { x: X0 + 3.05, y: y0, w: 4.6, h: 4.1 };
+    card(s, { ...P, line: PURPLE, name: "program" });
+    s.addImage({ data: ic.code, x: P.x + 0.3, y: P.y + 0.25, w: 0.38, h: 0.38, altText: "Program" });
+    text(s, "StableSave Vault program", { x: P.x + 0.8, y: P.y + 0.2, w: P.w - 1, h: 0.3, fontSize: 15, bold: true });
+    mono(s, "ANCHOR · DEVNET · 16 INSTRUCTIONS", { x: P.x + 0.8, y: P.y + 0.52, w: P.w - 1, h: 0.24, fontSize: 8.5, charSpacing: 1.5 });
+    label(s, "Program-enforced checks", { x: P.x + 0.3, y: P.y + 0.95, w: P.w - 0.6 });
+    bullets(s, [
       "Not paused",
       "Deposit ≥ minimum, under the vault cap",
       "Instant: 2,000 per wallet, 50,000 per vault / 24 h",
       "Bigger: request, wait 30 min, then execute",
       "Shares priced with a virtual offset",
-    ];
-    checks.forEach((c, i) => {
-      const y = P.y + 1.36 + i * 0.58;
-      s.addImage({ data: ic.check, x: P.x + 0.3, y: y + 0.04, w: 0.26, h: 0.26, altText: "Check" });
-      text(s, c, { x: P.x + 0.7, y, w: P.w - 0.95, h: 0.42, fontSize: 12.5 });
-    });
-    text(s, "Admin: authority (settings, unpause, two-step handover) · guardian (pause only)", {
-      x: P.x + 0.3, y: P.y + P.h - 0.62, w: P.w - 0.6, h: 0.45, fontSize: 10.5, color: AMBER,
+    ], { x: P.x + 0.3, y: P.y + 1.28, w: P.w - 0.55, rowH: 0.36, gap: 0.06, fontSize: 12.5 });
+    text(s, rich("**Admin:** authority (settings, unpause, two-step handover) · guardian (pause only)", YELLOW), {
+      x: P.x + 0.3, y: P.y + P.h - 0.6, w: P.w - 0.6, h: 0.45, fontSize: 10.5,
     });
 
-    // Arrows wallet -> program
     const ax = UW.x + UW.w;
     const aw = P.x - ax;
-    s.addShape(S.line, { x: ax + 0.05, y: UW.y + 0.55, w: aw - 0.1, h: 0, line: { color: HEX.green, width: 1.75, endArrowType: "triangle" }, objectName: "arrow-in" });
-    s.addShape(S.line, { x: ax + 0.05, y: UW.y + 1.05, w: aw - 0.1, h: 0, line: { color: HEX.muted, width: 1.25, beginArrowType: "triangle" }, objectName: "arrow-out" });
-    text(s, "deposit", { x: ax + 0.1, y: UW.y + 0.22, w: aw - 0.2, h: 0.28, fontSize: 10.5, color: GREEN, align: "center" });
-    text(s, "withdraw", { x: ax + 0.1, y: UW.y + 1.12, w: aw - 0.2, h: 0.28, fontSize: 10.5, color: MUTED, align: "center" });
+    s.addShape(S.line, { x: ax + 0.05, y: UW.y + 0.5, w: aw - 0.1, h: 0, line: { color: HEX.green, width: 1.75, endArrowType: "triangle" }, objectName: "arrow-in" });
+    s.addShape(S.line, { x: ax + 0.05, y: UW.y + 1.0, w: aw - 0.1, h: 0, line: { color: HEX.muted, width: 1.25, beginArrowType: "triangle" }, objectName: "arrow-out" });
+    mono(s, "deposit", { x: ax + 0.05, y: UW.y + 0.18, w: aw - 0.1, h: 0.25, fontSize: 9.5, color: GREEN, align: "center", charSpacing: 1 });
+    mono(s, "withdraw", { x: ax + 0.05, y: UW.y + 1.07, w: aw - 0.1, h: 0.25, fontSize: 9.5, align: "center", charSpacing: 1 });
 
-    // Accounts
-    const AX = X0 + 8.75;
-    const AW = CW - 8.75;
+    const AX = X0 + 8.05;
+    const AW = CW - 8.05;
     const accts = [
-      ["Vault PDA", '["vault", mint, risk_profile]', "Roles, limits, strategy, share totals"],
-      ["Reserve + practice pools", '["reserve"] · ["pool", protocol]', "20% kept liquid; the rest split by strategy weight. Only the vault signs transfers out"],
-      ["UserPosition PDA", '["position", vault, owner]', "One depositor's shares and pending withdrawal"],
+      ["Vault PDA", '["vault", mint, risk_profile]', "Roles, limits, strategy, share totals", INK],
+      ["Reserve + practice pools", '["reserve"] · ["pool", protocol]', "20% kept liquid; the rest split by strategy weight. Only the vault signs transfers out", GREEN],
+      ["UserPosition PDA", '["position", vault, owner]', "One depositor's shares and pending withdrawal", INK],
     ];
-    const ah = 1.47;
-    accts.forEach(([name, seeds, body], i) => {
-      const y = y0 + i * (ah + 0.2);
-      card(s, { x: AX, y, w: AW, h: ah, fill: SURFACE, line: BORDER, name: `acct-${i}` });
-      text(s, name, { x: AX + 0.25, y: y + 0.15, w: AW - 0.5, h: 0.3, fontSize: 14, bold: true, color: i === 1 ? GREEN : INK });
-      text(s, seeds, { x: AX + 0.25, y: y + 0.47, w: AW - 0.5, h: 0.28, fontSize: 10.5, color: PURPLE, fontFace: "Courier New" });
-      text(s, body, { x: AX + 0.25, y: y + 0.78, w: AW - 0.5, h: 0.5, fontSize: 11.5, color: MUTED });
+    const ah = 1.24;
+    accts.forEach(([name, seeds, body, color], i) => {
+      const y = y0 + i * (ah + 0.19);
+      card(s, { x: AX, y, w: AW, h: ah, name: `acct-${i}` });
+      text(s, name, { x: AX + 0.25, y: y + 0.13, w: AW - 0.5, h: 0.28, fontSize: 14, bold: true, color });
+      mono(s, seeds, { x: AX + 0.25, y: y + 0.42, w: AW - 0.5, h: 0.24, fontSize: 9.5, color: PURPLE, charSpacing: 0 });
+      text(s, body, { x: AX + 0.25, y: y + 0.68, w: AW - 0.45, h: 0.5, fontSize: 11, color: MUTED });
       s.addShape(S.line, { x: P.x + P.w + 0.05, y: y + ah / 2, w: AX - (P.x + P.w) - 0.1, h: 0, line: { color: HEX.border, width: 1.25, endArrowType: "oval" }, objectName: `link-${i}` });
     });
-    s.addNotes([
-      "TIME: about 50 seconds.",
-      "",
-      "SAY THIS CLEARLY: this is a separate component, and it's a devnet prototype. It splits deposits into practice pools, not real protocols, and it is not audited.",
-      "",
-      "Key message: the rules of the vault are enforced on-chain by the program, not by the website.",
-      "",
-      "Talking points:",
-      "- The vault is one Anchor program on Solana devnet with 16 instructions.",
-      "- It uses three kinds of account. These are PDAs: program-derived addresses, which only the program can sign for.",
-      "  - Vault: the settings. Who the admins are, the limits, the strategy weights, the share totals. One per token and risk level.",
-      "  - Reserve and practice pools: rebalance keeps 20% of the vault in the reserve for withdrawals and splits the rest into one practice pool per protocol, by the on-chain strategy weights. Anyone can call rebalance, but it can only move money toward the strategy. Only the vault can sign a transfer out.",
-      "  - UserPosition: one depositor's shares and any pending withdrawal.",
-      "- The user signs a deposit or a withdrawal from their wallet. The program checks it's not paused, the deposit is at least the minimum and under the cap, and the withdrawal fits the instant limits. Anything larger goes through a 30-minute timelock.",
-      "- Two admin roles: the authority changes settings and is the only one who can unpause. The guardian can only pause.",
-      "",
-      "Do NOT claim: that deposits earn market yield, that funds go to Kamino, MarginFi, Drift or Save yet, or that it's audited. The practice pools pay fixed practice rates from a sponsor pot of test tokens; real protocol integration is next.",
-      "",
-      "Transition: Here's that split working.",
-    ].join("\n"));
+    pageNumber(s);
+    s.addNotes(NOTES.vault);
   }
 
-  /* ---------- 9. Practice pools and the Blink ---------- */
+  /* ---------- 12. Practice pools and the Blink ---------- */
   {
     const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Solana vault" });
-    s.addText("The vault now splits every deposit, and a test proves it", { placeholder: "title" });
-    const LW = 6.75;
-    const pools = shots["12-vault-pools"];
-    const fp = screenshot(s, pools.file, pools.px, { x: X0 + 0.06, y: TOP + 0.06, w: LW - 0.12, h: 3.4 }, {
+    await title(s, "EVERY DEPOSIT, SPLIT", "Into practice pools by strategy, **and a test proves it** on every change.", 19);
+    const LW = 6.6;
+    const fp = screenshot(s, "12-vault-pools", { x: X0 + 0.05, y: TOP + 0.02, w: LW - 0.1, h: 2.95 }, {
       alt: "Where the vault's money is: $100.00 in total; $20.00 kept liquid for withdrawals; Kamino practice pool $36.00 at 5.20%; MarginFi $24.00 at 5.90%; Save $20.00 at 5.05%",
-      name: "shot-pools",
+      name: "shot-pools", rotate: -1.2,
     });
-    const blink = shots["13-blink"];
-    const fb = screenshot(s, blink.file, blink.px, { x: X0 + 0.06, y: fp.y + fp.h + 0.3, w: LW - 0.12, h: 0.9 }, {
+    const fb = screenshot(s, "13-blink", { x: X0 + 0.05, y: fp.y + fp.h + 0.3, w: LW - 0.1, h: 0.82 }, {
       alt: "Deposit from a link: a Solana Blink anyone with test USDC can use from a post or a QR code. Copy link, Open Blink",
-      name: "shot-blink",
+      name: "shot-blink", rotate: 1,
     });
-    caption(s, "Real interface · local build · the pools card shows the rehearsal's split", { x: fb.x - 0.06, y: fb.y + fb.h + 0.12, w: LW });
+    mono(s, "REAL INTERFACE · POOLS CARD SHOWS THE REHEARSAL'S SPLIT", { x: X0, y: fb.y + fb.h + 0.18, w: LW, h: 0.25, fontSize: 8.5, color: "7A7A7A", charSpacing: 1.5 });
 
-    // The CI rehearsal, as a chart.
-    const RX = X0 + LW + 0.35;
-    const RW = CW - LW - 0.35;
-    const RH = fb.y + fb.h + 0.06 - TOP;
-    card(s, { x: RX, y: TOP, w: RW, h: RH, fill: SURFACE, line: GREEN, name: "rehearsal-card" });
-    text(s, "CHECKED ON EVERY CHANGE", { x: RX + 0.3, y: TOP + 0.25, w: RW - 0.6, h: 0.26, fontSize: 10, bold: true, color: GREEN, charSpacing: 1.5 });
-    text(s, "A real deposit and withdrawal on a local Solana validator, in GitHub Actions (test USDC)", {
-      x: RX + 0.3, y: TOP + 0.55, w: RW - 0.6, h: 0.5, fontSize: 12, color: MUTED,
-    });
+    const RX = X0 + LW + 0.4;
+    const RW = CW - LW - 0.4;
+    const RH = 4.05;
+    card(s, { x: RX, y: TOP, w: RW, h: RH, line: GREEN, name: "rehearsal-card" });
+    label(s, "Checked on every change", { x: RX + 0.3, y: TOP + 0.22, w: RW - 0.6 });
+    text(s, "A real deposit and withdrawal on a local Solana validator, in GitHub Actions (test USDC)", { x: RX + 0.3, y: TOP + 0.5, w: RW - 0.6, h: 0.45, fontSize: 11.5, color: MUTED });
     s.addChart(pres.ChartType.bar, [
       { name: "Kept liquid", labels: ["After depositing 100", "After withdrawing 40"].reverse(), values: [20, 0].reverse() },
       { name: "In practice pools", labels: ["After depositing 100", "After withdrawing 40"].reverse(), values: [80, 60].reverse() },
     ], {
-      x: RX + 0.15, y: TOP + 1.05, w: RW - 0.3, h: 1.65,
-      barDir: "bar",
-      barGrouping: "stacked",
-      chartColors: [HEX.muted, HEX.green],
-      barGapWidthPct: 45,
-      showValue: true,
-      dataLabelPosition: "ctr",
-      dataLabelColor: HEX.navy,
-      dataLabelFontSize: 11,
-      dataLabelFontFace: "+mn-lt",
-      dataLabelFormatCode: "0;;;",
-      catAxisLabelColor: HEX.white,
-      catAxisLabelFontSize: 11,
-      catAxisLabelFontFace: "+mn-lt",
-      catAxisLineShow: false,
-      valAxisHidden: true,
-      valAxisMinVal: 0,
-      valAxisMaxVal: 100,
-      valGridLine: { style: "none" },
-      catGridLine: { style: "none" },
-      showLegend: true,
-      legendPos: "b",
-      legendColor: HEX.white,
-      legendFontSize: 11,
-      legendFontFace: "+mn-lt",
-      showTitle: false,
-      objectName: "rehearsal-chart",
+      x: RX + 0.15, y: TOP + 0.98, w: RW - 0.3, h: 1.5,
+      barDir: "bar", barGrouping: "stacked", chartColors: [HEX.muted, HEX.green], barGapWidthPct: 45,
+      showValue: true, dataLabelPosition: "ctr", dataLabelColor: HEX.ink, dataLabelFontSize: 11, dataLabelFontFace: "+mn-lt", dataLabelFormatCode: "0;;;",
+      catAxisLabelColor: HEX.white, catAxisLabelFontSize: 10.5, catAxisLabelFontFace: "+mn-lt", catAxisLineShow: false,
+      valAxisHidden: true, valAxisMinVal: 0, valAxisMaxVal: 100, valGridLine: { style: "none" }, catGridLine: { style: "none" },
+      showLegend: true, legendPos: "b", legendColor: HEX.white, legendFontSize: 10.5, legendFontFace: "+mn-lt",
+      showTitle: false, objectName: "rehearsal-chart",
     });
     const checks = [
       ["Split by strategy", "80 into three pools, 20 kept liquid"],
@@ -813,32 +720,21 @@ async function main() {
       ["The books match", "Wallet 940 and pools 60, read on-chain"],
     ];
     checks.forEach(([head, body], i) => {
-      const y = TOP + 2.88 + i * 0.57;
-      s.addImage({ data: ic.check, x: RX + 0.3, y: y + 0.03, w: 0.3, h: 0.3, altText: "Passed" });
-      text(s, head, { x: RX + 0.75, y, w: RW - 1.0, h: 0.28, fontSize: 13, bold: true });
-      text(s, body, { x: RX + 0.75, y: y + 0.27, w: RW - 1.0, h: 0.26, fontSize: 11, color: MUTED });
+      const y = TOP + 2.62 + i * 0.47;
+      s.addImage({ data: ic.check, x: RX + 0.3, y: y + 0.03, w: 0.28, h: 0.28, altText: "Passed" });
+      text(s, [
+        { text: head, options: { bold: true, color: INK, breakLine: true } },
+        { text: body, options: { color: MUTED, fontSize: 10.5 } },
+      ], { x: RX + 0.72, y, w: RW - 0.95, h: 0.46, fontSize: 12.5, lineSpacingMultiple: 0.95 });
     });
-    s.addNotes([
-      "TIME: about 35 seconds.",
-      "",
-      "Key message: the split into pools isn't a drawing. The program does it, and an automated test proves it on every change.",
-      "",
-      "Talking points:",
-      "- Left: the Vault page reads the whole vault from the chain. 20% stays liquid for withdrawals; the rest sits in one practice pool per protocol, by the strategy weights: here 45, 30 and 25% of the invested part for Kamino, MarginFi and Save.",
-      "- Anyone can press \"Collect interest & rebalance\". It pays each pool its practice interest from a sponsor pot, and it can only move money toward the on-chain strategy.",
-      "- Right: on every push, GitHub Actions deploys the program to a local Solana validator, deposits 100 test USDC, checks the 80/20 split, then withdraws 40. The reserve only had 20, so the program pulled the other 20 from the pools. The wallet ends at 940 and the pools at 60: the books match.",
-      "- Bottom left: the deposit Blink. The same deposit works from a link or a QR code, in any wallet or app that reads Solana Actions, without opening the site.",
-      "",
-      "Honesty: these are practice pools with fixed practice rates, paid in worthless test tokens. Not market yield, not audited, devnet only. The pools card in the screenshot is the real component showing the rehearsal's numbers.",
-      "",
-      "Transition: Each of those controls is a trade-off, so let me be explicit about them.",
-    ].join("\n"));
+    pageNumber(s);
+    s.addNotes(NOTES.pools);
   }
 
-  /* ---------- 10. Safety controls ---------- */
+  /* ---------- 13. Safety controls ---------- */
   {
     const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Solana vault" });
-    s.addText("Security is not a badge. It is a set of explicit trade-offs", { placeholder: "title" });
+    await title(s, "SECURITY IS TRADE-OFFS", "Not a badge: **each control buys safety at a cost**.", 20);
     const controls = [
       [ic.check, "On-chain checks", "Pause, minimum and cap", "Rejects bad deposits and exits"],
       [ic.users, "2,000 per wallet / 24 h", "Instant withdrawal limit", "Limits a stolen wallet"],
@@ -850,257 +746,170 @@ async function main() {
       [ic.test, "Automated tests", "14 unit + 10 integration", "Plus a local deploy rehearsal"],
     ];
     const cols = 4;
-    const gap = 0.25;
+    const gap = 0.22;
     const cw = (CW - gap * (cols - 1)) / cols;
-    const ch = 2.02;
+    const ch = 1.62;
     controls.forEach(([img, head, sub, trade], i) => {
       const x = X0 + (i % cols) * (cw + gap);
       const y = TOP + Math.floor(i / cols) * (ch + gap);
-      card(s, { x, y, w: cw, h: ch, fill: SURFACE, line: BORDER, name: `control-${i}` });
-      s.addImage({ data: img, x: x + 0.25, y: y + 0.25, w: 0.36, h: 0.36, altText: head });
-      text(s, head, { x: x + 0.25, y: y + 0.72, w: cw - 0.45, h: 0.32, fontSize: 14, bold: true });
-      text(s, sub, { x: x + 0.25, y: y + 1.05, w: cw - 0.45, h: 0.3, fontSize: 11.5, color: MUTED });
-      text(s, trade, { x: x + 0.25, y: y + 1.48, w: cw - 0.45, h: 0.3, fontSize: 11.5, color: GREEN });
+      card(s, { x, y, w: cw, h: ch, name: `control-${i}` });
+      s.addImage({ data: img, x: x + 0.25, y: y + 0.22, w: 0.32, h: 0.32, altText: head });
+      text(s, head, { x: x + 0.25, y: y + 0.65, w: cw - 0.45, h: 0.3, fontSize: 14, bold: true });
+      text(s, sub, { x: x + 0.25, y: y + 0.95, w: cw - 0.45, h: 0.26, fontSize: 11.5, color: MUTED });
+      text(s, trade, { x: x + 0.25, y: y + 1.24, w: cw - 0.4, h: 0.26, fontSize: 11.5, color: GREEN });
     });
-    const NY = TOP + 2 * ch + gap + 0.2;
-    card(s, { x: X0, y: NY, w: CW, h: 0.58, fill: SURFACE, line: AMBER, radius: 0.1, name: "not-yet" });
-    text(s, [
-      { text: "Not yet: ", options: { bold: true, color: AMBER } },
+    callout(s, [
+      { text: "Not yet: ", options: { bold: true, color: ORANGE } },
       { text: "audit · multisig authority · strategy-change delay · pause escape hatch · fuzz testing", options: { color: INK } },
-      { text: "   (everything above runs on devnet only)", options: { color: MUTED } },
-    ], { x: X0 + 0.3, y: NY + 0.08, w: CW - 0.6, h: 0.42, fontSize: 13, valign: "middle" });
-    s.addNotes([
-      "TIME: about 40 seconds.",
-      "",
-      "Key message: every control buys safety with something else, and I can name the cost of each one.",
-      "",
-      "Talking points (pick three, don't read all eight):",
-      "- Two instant-withdrawal limits: 2,000 per wallet and 50,000 per vault every 24 hours. They limit the damage from a stolen wallet and slow a bank run. The cost: large withdrawals are slower.",
-      "- Above the limits there's a 30-minute timelock: time to react before a big outflow. The cost: users wait.",
-      "- The guardian can pause; only the authority can unpause. A fast emergency stop that one key can't abuse. The cost: today there's no escape hatch if the vault stays paused.",
-      "- Shares use 1,000 virtual shares and 1 virtual asset, so the first depositor can't inflate the share price. The cost: tiny rounding losses.",
-      "- Only the program's upgrade authority can create vaults, so nobody can front-run vault creation. The cost: that's a single powerful key.",
-      "- Tests: 14 unit and 10 integration tests run against the compiled program on every change, and an automated job deploys it to a local test network, makes a real deposit, checks the split into practice pools and withdraws.",
-      "",
-      "Do NOT call it audited or production-ready. Bottom line on the slide: devnet only.",
-      "",
-      "Transition: Enough slides. Let's look at it working.",
-    ].join("\n"));
+      { text: "   (everything above runs on devnet only)" },
+    ], { x: X0, y: TOP + 2 * ch + gap + 0.25, w: CW, h: 0.5, tone: "orange", fontSize: 9.5 });
+    pageNumber(s);
+    s.addNotes(NOTES.security);
   }
 
-  /* ---------- 11. Live demo ---------- */
-  pres.addSection({ title: "Demo" });
+  /* ---------- 14. Chapter 03 ---------- */
+  pres.addSection({ title: "Demo and roadmap" });
+  await divider(3, "DEMO & WHAT'S NEXT", "What works today, **what's missing**, and what I build next.", [
+    { name: "chart", x: 10.75, y: 0.95, w: 1.3, rotate: -8 },
+    { name: "piggy", x: 1.15, y: 4.5, w: 1.5, rotate: 8 },
+    { name: "sparkle", x: 11.0, y: 5.35, w: 0.95, rotate: 0 },
+  ], NOTES.chapter3, "Demo and roadmap");
+
+  /* ---------- 15. Live demo ---------- */
   {
-    const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Demo" });
-    s.addText("Let's see what works today", { placeholder: "title" });
-    const colW = (CW - 0.4) / 2;
+    const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Demo and roadmap" });
+    await title(s, "LET'S SEE IT WORK", "Part A is **live**. Part B is a **devnet prototype**. Keep them separate.", 21);
+    const colW = (CW - 0.35) / 2;
     const parts = [
       {
-        tag: "A · LIVE", color: GREEN, title: "Comparison app", url: "stablesaver-web.vercel.app",
-        shot: shots["01-home-hero"], alt: "Comparison app home: amount, estimated earnings and risk preference",
+        tag: "A · LIVE", color: GREEN, title: "Comparison app", url: "stablesaver-web.vercel.app", shot: "01-home-hero",
+        alt: "Comparison app home: amount, estimated earnings and risk preference",
         steps: ["Find idle money in a wallet", "Switch Safe / Balanced / Bigger", "Open an option: grade, withdraw", "Compare with US T-bills", "$100 + Ethereum: fees win", "Share my estimate"],
       },
       {
-        tag: "B · DEVNET PROTOTYPE", color: PURPLE, title: "Vault", url: "Wallet on Solana devnet",
-        shot: shots["06-vault-withdraw"], alt: "Vault withdraw screen: 2,000 now, the rest after a 30-minute timelock",
+        tag: "B · DEVNET PROTOTYPE", color: PURPLE, title: "Vault", url: "Wallet on Solana devnet", shot: "06-vault-withdraw",
+        alt: "Vault withdraw screen: 2,000 now, the rest after a 30-minute timelock",
         steps: ["Connect a devnet wallet", "Deposit: split into pools", "Where the money is", "Collect interest, rebalance", "Withdraw: pools top up", "Deposit from a Blink"],
       },
     ];
+    const ch = 3.75;
     parts.forEach((p, i) => {
-      const x = X0 + i * (colW + 0.4);
-      card(s, { x, y: TOP, w: colW, h: 4.65, fill: SURFACE, line: BORDER, name: `demo-${i}` });
-      chip(s, { x: x + 0.3, y: TOP + 0.28, w: i === 0 ? 1.05 : 2.25, label: p.tag, color: p.color, fontSize: 9.5 });
-      text(s, p.title, { x: x + 0.3, y: TOP + 0.78, w: 3.4, h: 0.4, fontSize: 20, bold: true });
-      text(s, p.url, { x: x + 0.3, y: TOP + 1.18, w: 3.4, h: 0.3, fontSize: 11.5, color: p.color });
+      const x = X0 + i * (colW + 0.35);
+      card(s, { x, y: TOP + 0.05, w: colW, h: ch, name: `demo-${i}` });
+      tape(s, p.tag, { x: x + 0.2, y: TOP - 0.1, w: i === 0 ? 1.35 : 2.6, h: 0.34, color: p.color, rotate: i === 0 ? -3 : 2, fontSize: 9 });
+      text(s, p.title, { x: x + 0.3, y: TOP + 0.42, w: 3.3, h: 0.38, fontSize: 19, bold: true });
+      mono(s, p.url, { x: x + 0.3, y: TOP + 0.82, w: 3.3, h: 0.24, fontSize: 9.5, color: p.color, charSpacing: 0.5 });
       p.steps.forEach((st, k) => {
-        const y = TOP + 1.65 + k * 0.47;
-        numberBadge(s, { x: x + 0.3, y: y + 0.02, n: k + 1, d: 0.3, fontSize: 10.5, color: p.color });
-        text(s, st, { x: x + 0.72, y, w: 2.9, h: 0.36, fontSize: 13, valign: "middle" });
+        const y = TOP + 1.22 + k * 0.42;
+        mono(s, `0${k + 1}`, { x: x + 0.3, y: y + 0.04, w: 0.42, h: 0.26, fontFace: MONO_SEMI, fontSize: 10.5, color: p.color, charSpacing: 0.5 });
+        text(s, st, { x: x + 0.75, y, w: 2.85, h: 0.34, fontSize: 12.5, valign: "middle" });
       });
-      const f = fit(p.shot.px, { x: x + 3.75, y: TOP + 0.3, w: colW - 4.0, h: 4.05 });
-      card(s, { x: f.x - 0.05, y: f.y - 0.05, w: f.w + 0.1, h: f.h + 0.1, fill: NAVY, line: BORDER, radius: 0.1 });
-      s.addImage({ path: p.shot.file, ...f, altText: p.alt, objectName: `demo-shot-${i}` });
+      const sh = shots[p.shot];
+      const f = fit(sh.px, { x: x + 3.7, y: TOP + 0.3, w: colW - 3.95, h: ch - 0.5 });
+      s.addShape(S.roundRect, { x: f.x - 0.04, y: f.y - 0.04, w: f.w + 0.08, h: f.h + 0.08, rectRadius: 0.06, fill: { color: "0E0E0E" }, line: { color: BORDER, width: 1 } });
+      s.addImage({ path: sh.file, ...f, altText: p.alt, objectName: `demo-shot-${i}` });
     });
-    const NY = TOP + 4.82;
     text(s, [
-      { text: "Devnet tokens have no value. ", options: { bold: true, color: AMBER } },
+      { text: "Devnet tokens have no value. ", options: { bold: true, color: YELLOW } },
       { text: "Practice pools pay fixed practice rates, not market yield. Thumbnails: local build (demo data; vault in simulated preview).", options: { color: MUTED } },
-    ], { x: X0, y: NY, w: CW, h: 0.4, fontSize: 11.5 });
-    s.addNotes([
-      "TIME: 15 seconds for the slide; the live demo itself takes 3 to 4 minutes if there's time. If time is short, skip Part B and show this slide only.",
-      "",
-      "SAY: Part A is live. Part B is a devnet prototype. Keep them separate.",
-      "",
-      "PART A — live comparison app (stablesaver-web.vercel.app)",
-      "1. Open the site (no wallet or sign-up). Click \"Find idle money in my wallet\" and paste a wallet address: it reads the USDC and USDT on Solana, read-only, and fills the calculator.",
-      "2. Click Play it safe, then Balanced, then Go bigger. The recommendation and the list change.",
-      "3. Open the top option. Show the rate chart (drag across it), \"Can I withdraw today?\" and \"How risky is it?\": the grade and each factor.",
-      "4. Point at the \"For comparison\" row: US Treasury bills, from the US Treasury's own data, with no crypto risk.",
-      "5. Type $100 and pick the Ethereum chip. If the live data still shows it, an option is marked \"Fees cost more than you'd earn\". If it doesn't, say so and move on.",
-      "6. Click \"Share my estimate\": the link previews as a card with the estimate. The QR code on the last slide opens the same site.",
-      "",
-      "PART B — devnet vault",
-      "Before the talk: Vercel has the three devnet variables set and redeployed; Solflare is on devnet with test tokens and a little devnet SOL; do one dry run.",
-      "1. Show the wallet is on devnet (Solflare: Settings, Network, Devnet), open Vault (the badge says Devnet, not Preview) and connect.",
-      "2. Deposit some test tokens; approve in the wallet. The same transaction splits the deposit into the practice pools.",
-      "3. \"Where the vault's money is\": 20% kept liquid, the rest in a pool per protocol, read from the chain.",
-      "4. Click \"Collect interest & rebalance\": anyone can press it, and it can only move money toward the on-chain strategy.",
-      "5. Withdraw more than the reserve holds: the program pulls the difference back from the pools. Above 2,000 the rest waits 30 minutes; don't wait live.",
-      "6. Open the Blink from the Vault page: the same deposit, from a link or QR code.",
-      "",
-      "Say out loud: devnet tokens have no value; the pools pay fixed practice rates, not market yield.",
-      "",
-      "Backup if the network fails: use these screenshots and the recorded run if you made one.",
-    ].join("\n"));
+    ], { x: X0, y: TOP + ch + 0.22, w: CW, h: 0.35, fontSize: 11 });
+    pageNumber(s);
+    s.addNotes(NOTES.demo);
   }
 
-  /* ---------- 12. Status ---------- */
-  pres.addSection({ title: "Status and roadmap" });
+  /* ---------- 16. Status ---------- */
   {
-    const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Status and roadmap" });
-    s.addText("What is live, what is experimental, and what comes next", { placeholder: "title" });
+    const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Demo and roadmap" });
+    await title(s, "LIVE, DEVNET, NOT YET", "What's real, what's experimental, and **what's missing**.", 22);
     const cols = [
-      { head: "Live", color: GREEN, items: ["Stablecoin opportunity comparison", "Risk grades and explanations", "Fee-adjusted earnings estimates", "Withdraw-today check, T-bill comparison", "Idle-money scan and share cards"] },
+      { head: "Live", color: GREEN, items: ["Stablecoin opportunity comparison", "Risk grades and their reasons", "Fee-adjusted earnings estimates", "Withdraw-today check, T-bill row", "Idle-money scan, share cards"] },
       { head: "Devnet prototype", color: PURPLE, items: ["Anchor vault program", "Deposits, shares, limits, timelock", "Split into practice pools on-chain", "Deposit Blink (Solana Action)", "Pause and authority controls"] },
-      { head: "Not yet implemented", color: AMBER, items: ["CPI into Kamino, MarginFi, Drift and Save", "Market yield through the vault", "Production security assurances"] },
+      { head: "Not yet implemented", color: ORANGE, items: ["CPI into Kamino, MarginFi, Drift and Save", "Market yield through the vault", "Production security assurances"] },
     ];
-    const gap = 0.3;
+    const gap = 0.28;
     const cw = (CW - 2 * gap) / 3;
-    const ch = 3.35;
+    const ch = 2.75;
     cols.forEach((c, i) => {
       const x = X0 + i * (cw + gap);
-      card(s, { x, y: TOP, w: cw, h: ch, fill: SURFACE, line: c.color, name: `status-${i}` });
-      text(s, c.head, { x: x + 0.3, y: TOP + 0.25, w: cw - 0.6, h: 0.4, fontSize: 18, bold: true, color: c.color });
-      text(s, c.items.map((t, k) => ({ text: t, options: { bullet: { indent: 14 }, breakLine: k < c.items.length - 1 } })), {
-        x: x + 0.3, y: TOP + 0.8, w: cw - 0.55, h: ch - 1.0, fontSize: 13.5, paraSpaceAfter: 7, color: INK,
-      });
+      card(s, { x, y: TOP, w: cw, h: ch, name: `status-${i}` });
+      label(s, c.head, { x: x + 0.3, y: TOP + 0.24, w: cw - 0.6, color: c.color, size: 10.5 });
+      bullets(s, c.items, { x: x + 0.3, y: TOP + 0.62, w: cw - 0.45, rowH: c.items.length > 3 ? 0.36 : 0.58, gap: 0.06, fontSize: 12.5 });
     });
     const LY = TOP + ch + 0.3;
-    text(s, "ALSO WORTH KNOWING", { x: X0, y: LY, w: 4, h: 0.28, fontSize: 10.5, bold: true, color: MUTED, charSpacing: 2 });
-    const lims = ["One data source", "Fixed network-fee estimates", "Weights not back-tested", "Ranks on today's APY, not the 30-day average", "Bridge costs and risk not modelled", "Admin and upgrade-key risk"];
+    label(s, "Also worth knowing", { x: X0, y: LY, w: 4, color: MUTED });
+    const lims = ["One data source", "Fixed network-fee estimates", "Weights not back-tested", "Ranks on today's APY, not 30-day avg", "Bridge costs and risk not modelled", "Admin and upgrade-key risk"];
     const lw = (CW - 0.2 * 2) / 3;
     lims.forEach((l, i) => {
       const x = X0 + (i % 3) * (lw + 0.2);
-      const y = LY + 0.38 + Math.floor(i / 3) * 0.5;
+      const y = LY + 0.36 + Math.floor(i / 3) * 0.48;
       s.addText(l, {
-        shape: S.roundRect, rectRadius: 0.1, x, y, w: lw, h: 0.4,
-        fill: { color: RAISED }, line: { color: BORDER, width: 0.75 },
-        fontSize: 11.5, color: INK, align: "center", valign: "middle", margin: 0, isTextBox: true,
+        shape: S.roundRect, rectRadius: 0.18, x, y, w: lw, h: 0.38,
+        fill: { color: BG }, line: { color: BORDER, width: 1, dashType: "dash" },
+        fontFace: MONO, fontSize: 9.5, color: INK, align: "center", valign: "middle", margin: 0, charSpacing: 0.5, isTextBox: true,
       });
     });
-    s.addNotes([
-      "TIME: about 35 seconds.",
-      "",
-      "Key message: I know exactly what's real, what's experimental and what's missing. That's a strength, not an apology.",
-      "",
-      "Talking points:",
-      "- Live today: the comparison on DefiLlama data, the grades with their reasons, fee-adjusted estimates, \"Can I withdraw today?\", the US Treasury bill comparison, the idle-money wallet scan, shareable estimate cards, and an optional API.",
-      "- Devnet prototype: the Anchor vault with deposits, shares, withdrawal limits, the timelock, pause and authority controls; a permissionless rebalance that splits deposits into practice pools by the on-chain strategy; and a deposit Blink.",
-      "- Not yet: CPI into the real protocols, so no market yield through the vault. Every balance the vault counts is already a real token in an account it owns, read on-chain, never reported by an admin. And no production security assurances: no audit.",
-      "- Other limits: one data source, fixed fee estimates, weights that are my judgement and not back-tested, ranking on today's APY rather than the 30-day average, bridging not modelled, and admin and upgrade-key risk.",
-      "",
-      "Transition: Here's the order I'll fix them in.",
-    ].join("\n"));
+    pageNumber(s);
+    s.addNotes(NOTES.status);
   }
 
-  /* ---------- 13. Roadmap ---------- */
+  /* ---------- 17. Roadmap ---------- */
   {
-    const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Status and roadmap" });
-    s.addText([{ text: "From useful comparison tool", options: { breakLine: true } }, { text: "to a more complete on-chain system" }], { placeholder: "title" });
+    const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Demo and roadmap" });
+    await title(s, "WHAT COMES NEXT", "Safety first, then **the feature that makes the vault real**.", 23);
     const phases = [
-      { n: "Phase 1", head: "Safety and correctness", color: GREEN, items: ["Escape hatch if a vault stays paused", "close_position to refund rent", "Fuzz the share math and limits"] },
-      { n: "Phase 2", head: "Better recommendations", color: GREEN, items: ["Rank on the 30-day average APY", "Flag options that need funds moved between networks", "Back-test grades against past exploits"] },
-      { n: "Phase 3", head: "Vault integration", color: PURPLE, items: ["Swap a practice pool for one real Kamino strategy", "Tested against the real Kamino program on a local validator", "Same rebalance and on-chain balances"] },
-      { n: "Phase 4", head: "Admin and expansion", color: PURPLE, items: ["Multisig authority", "Delay on strategy changes", "Alerts, read-only portfolio, more tokens"] },
+      { n: "01", head: "Safety and correctness", color: GREEN, items: ["Escape hatch if a vault stays paused", "close_position to refund rent", "Fuzz the share math and limits"] },
+      { n: "02", head: "Better recommendations", color: YELLOW, items: ["Rank on the 30-day average APY", "Flag options that need funds moved between networks", "Back-test grades against past exploits"] },
+      { n: "03", head: "Vault integration", color: ORANGE, items: ["Swap a practice pool for one real Kamino strategy", "Tested against the real Kamino program", "Same rebalance and on-chain balances"] },
+      { n: "04", head: "Admin and expansion", color: PURPLE, items: ["Multisig authority", "Delay on strategy changes", "Alerts, read-only portfolio, more tokens"] },
     ];
-    const gap = 0.28;
+    const gap = 0.3;
     const pw = (CW - 3 * gap) / 4;
-    const lineY = TOP + 0.35;
-    s.addShape(S.line, { x: X0 + 0.2, y: lineY, w: CW - 0.4, h: 0, line: { color: HEX.border, width: 2 }, objectName: "timeline" });
+    const rots = [-1.5, 1.2, -1, 1.5];
     phases.forEach((p, i) => {
       const x = X0 + i * (pw + gap);
-      s.addShape(S.ellipse, { x: x + 0.2, y: lineY - 0.13, w: 0.26, h: 0.26, fill: { color: p.color }, line: { color: NAVY, width: 2 }, objectName: `dot-${i}` });
-      text(s, p.n.toUpperCase(), { x: x + 0.6, y: lineY - 0.15, w: pw - 0.6, h: 0.3, fontSize: 11, bold: true, color: p.color, charSpacing: 2 });
-      const y = lineY + 0.45;
-      card(s, { x, y, w: pw, h: 3.95, fill: SURFACE, line: BORDER, name: `phase-${i}` });
-      text(s, p.head, { x: x + 0.28, y: y + 0.28, w: pw - 0.5, h: 0.7, fontSize: 17, bold: true });
-      p.items.forEach((it, k) => {
-        const iy = y + 1.15 + k * 0.88;
-        s.addShape(S.ellipse, { x: x + 0.3, y: iy + 0.09, w: 0.12, h: 0.12, fill: { color: p.color }, line: { color: p.color, width: 0 } });
-        text(s, it, { x: x + 0.55, y: iy, w: pw - 0.8, h: 0.78, fontSize: 13, color: INK });
+      s.addText([
+        { text: p.n, options: { fontFace: DISPLAY, fontSize: 44, color: p.color, breakLine: true } },
+        { text: `PHASE ${i + 1}`, options: { fontFace: MONO, fontSize: 9.5, color: HEX.sub, charSpacing: 2.5, breakLine: true } },
+        { text: p.head, options: { fontSize: 15, bold: true, color: INK, breakLine: true } },
+        { text: " ", options: { fontSize: 6, breakLine: true } },
+        ...p.items.map((it, k) => ({ text: it, options: { fontSize: 12, color: HEX.sub, bullet: { indent: 12 }, paraSpaceAfter: 5, breakLine: k < p.items.length - 1 } })),
+      ], {
+        shape: S.roundRect, rectRadius: 0.12, x, y: TOP + 0.05, w: pw, h: 3.55, rotate: rots[i],
+        fill: { color: SURFACE }, line: { color: BORDER, width: 1.25 }, shadow: hardShadow(),
+        align: "left", valign: "top", margin: [14, 16, 14, 16], lineSpacingMultiple: 1.0, isTextBox: true, objectName: `phase-${i}`,
       });
     });
-    chip(s, { x: X0, y: lineY + 4.55, w: 1.75, h: 0.32, label: "PLANNED WORK", color: AMBER, fontSize: 9.5, name: "planned-chip" });
-    text(s, "None of this is built yet. Safety first, then the feature that makes the vault real.", { x: X0 + 2.0, y: lineY + 4.55, w: CW - 2.0, h: 0.32, fontSize: 12, italic: true, color: MUTED, valign: "middle" });
-    s.addNotes([
-      "TIME: about 30 seconds.",
-      "",
-      "Key message: the roadmap goes straight at the weaknesses I just listed. Safety first, then the feature that makes the vault real.",
-      "",
-      "Talking points:",
-      "- Phase 1, safety: an escape hatch so withdrawals reopen if a vault stays paused too long; close_position to refund account rent; fuzz testing the share math and withdrawal limits.",
-      "- Phase 2, recommendations: rank on the 30-day average instead of today's rate; flag options that need funds moved between networks; back-test the grades against past exploits.",
-      "- Phase 3, the vault: replace a practice pool with one real Kamino lending integration, tested against the real Kamino program on a local validator. The rebalance and the on-chain accounting stay the same.",
-      "- Phase 4: a multisig authority and a delay on strategy changes, then rate and grade alerts, a read-only portfolio view, and more tokens such as USDT and Token-2022.",
-      "",
-      "All of this is planned, none of it is built yet. Don't give dates you can't commit to.",
-      "",
-      "Transition: To wrap up.",
-    ].join("\n"));
+    tape(s, "PLANNED WORK", { x: X0, y: TOP + 3.92, w: 1.9, h: 0.34, color: ORANGE, rotate: -2, fontSize: 9 });
+    text(s, "None of this is built yet. Safety first, then the feature that makes the vault real.", { x: X0 + 2.15, y: TOP + 3.9, w: CW - 2.15, h: 0.36, fontSize: 12, italic: true, color: MUTED, valign: "middle" });
+    pageNumber(s);
+    s.addNotes(NOTES.roadmap);
   }
 
-  /* ---------- 14. Closing ---------- */
+  /* ---------- 18. Closing ---------- */
   pres.addSection({ title: "Close" });
   {
-    const s = pres.addSlide({ masterName: "COVER", sectionTitle: "Close" });
-    logo(s, 0.36);
-    text(s, "Make stablecoin yield easier to understand before making it easier to chase.", {
-      x: X0, y: 1.55, w: 8.2, h: 1.7, fontSize: 36, bold: true, lineSpacingMultiple: 0.95,
-    });
-    const contrib = [
-      [ic.bars, "Simpler comparison", "Yield options in one place, ranked for your risk."],
-      [ic.gauge, "Risk grades that show trade-offs", "A–D, with the reasons, and unknowns never guessed."],
-      [ic.vault, "A separate Solana vault prototype", "Controlled deposits and withdrawals on devnet."],
-    ];
-    contrib.forEach(([img, head, body], i) => {
-      const y = 3.55 + i * 0.82;
-      s.addImage({ data: img, x: X0, y: y + 0.05, w: 0.4, h: 0.4, altText: head });
-      text(s, head, { x: X0 + 0.6, y, w: 6.8, h: 0.32, fontSize: 16, bold: true });
-      text(s, body, { x: X0 + 0.6, y: y + 0.33, w: 6.8, h: 0.3, fontSize: 12.5, color: MUTED });
-    });
-    // QR card
-    const QX = W - X0 - 3.3;
-    card(s, { x: QX, y: 1.55, w: 3.3, h: 4.35, fill: SURFACE, line: BORDER, transparency: 10, name: "qr-card" });
-    s.addImage({ path: qr, x: QX + 0.45, y: 1.85, w: 2.4, h: 2.4, altText: "QR code linking to stablesaver-web.vercel.app" });
-    text(s, "Try it now", { x: QX + 0.3, y: 4.42, w: 2.7, h: 0.32, fontSize: 15, bold: true, align: "center" });
-    text(s, "stablesaver-web.vercel.app", { x: QX + 0.2, y: 4.75, w: 2.9, h: 0.3, fontSize: 12, color: GREEN, align: "center" });
-    text(s, "Feedback welcome on risk scoring, vault security, and which integration to build next.", {
-      x: QX + 0.25, y: 5.12, w: 2.8, h: 0.7, fontSize: 10.5, color: MUTED, align: "center",
-    });
-    text(s, [
-      { text: "Theo", options: { bold: true, color: INK } },
-      { text: "   ·   StableSave — Know the risk before you chase the yield.", options: { color: MUTED } },
-    ], { x: X0, y: 6.45, w: 9, h: 0.4, fontSize: 13 });
-    s.addNotes([
-      "TIME: about 25 seconds, then questions.",
-      "",
-      "Key message: StableSave makes yield easier to understand before it makes yield easier to chase.",
-      "",
-      "Talking points:",
-      "- Three things: simpler comparison across yield options; risk grades that show the trade-offs; and a separate Solana vault prototype that explores controlled deposits and withdrawals.",
-      "- Scan the code to try it. No wallet needed.",
-      "- I'd love feedback on three things: the risk scoring, the vault's security model, and which integration I should build next.",
-      "- Close: StableSave. Know the risk before you chase the yield. Thank you.",
-      "",
-      "Likely questions and honest answers:",
-      "- Does the vault earn yield? Not market yield yet. On devnet it splits deposits into practice pools that pay fixed practice rates from a sponsor pot of test tokens; swapping one for a real Kamino strategy is the next build.",
-      "- Is it audited? No. It's a devnet prototype.",
-      "- Who controls the vault? One authority key today, plus a guardian that can only pause. A multisig and a delay on strategy changes are planned.",
-      "- Why trust the grades? They're transparent: every factor and its reason is shown, and unknowns lower the grade. The weights are my judgement and not back-tested yet.",
-      "- Why only DefiLlama? It covers every network without an API key. The trade-off is a single point of failure.",
-    ].join("\n"));
+    const s = pres.addSlide({ masterName: "CLOSE", sectionTitle: "Close" });
+    const value = "THANK YOU!";
+    const b = await art.titleBlob(art.antonWidth(value, 62), 1.75, 61, { margin: 0.5 });
+    s.addImage({ data: b.data, x: W / 2 - (b.left + b.right) / 2, y: 0.78, w: b.w, h: b.h, altText: "", objectName: "title-blob" });
+    s.addText(value, { placeholder: "title" });
+    text(s, rich("Make stablecoin yield easier to understand **before making it easier to chase.**"), { x: 2.0, y: 2.65, w: W - 4.0, h: 0.75, fontSize: 19, align: "center" });
+    // QR as a sticker.
+    const q = { x: W / 2 - 1.2, y: 3.55, w: 2.4, h: 2.4 };
+    s.addShape(S.roundRect, { ...q, rectRadius: 0.16, rotate: 3, fill: { color: "FFFFFF" }, line: { color: "FFFFFF", width: 0 }, shadow: hardShadow(), objectName: "qr-card" });
+    s.addImage({ path: qr, x: q.x + 0.18, y: q.y + 0.18, w: q.w - 0.36, h: q.h - 0.36, rotate: 3, altText: "QR code linking to stablesaver-web.vercel.app" });
+    mono(s, "SCAN TO TRY IT  ·  STABLESAVER-WEB.VERCEL.APP", { x: 0, y: 6.2, w: W, h: 0.28, fontFace: MONO_SEMI, fontSize: 11, color: GREEN, align: "center", charSpacing: 2.5 });
+    text(s, "Feedback welcome on risk scoring, vault security, and which integration to build next.", { x: 2.5, y: 6.52, w: W - 5, h: 0.3, fontSize: 12.5, color: MUTED, align: "center" });
+    sticker(s, "coin", { x: 1.6, y: 3.9, w: 1.6, rotate: -14 });
+    sticker(s, "sprout", { x: 2.3, y: 0.9, w: 1.15, rotate: 10 });
+    sticker(s, "piggy", { x: 10.2, y: 4.0, w: 1.7, rotate: 8 });
+    sticker(s, "shield", { x: 10.6, y: 1.0, w: 1.15, rotate: -6 });
+    sticker(s, "sparkle", { x: 8.35, y: 3.75, w: 0.85, rotate: 0 });
+    pageNumber(s);
+    s.addNotes(NOTES.close);
   }
 
+  if (page !== TOTAL) throw new Error(`TOTAL is ${TOTAL} but the deck has ${page} slides`);
   await pres.writeFile({ fileName: OUT });
   await applyTheme(OUT, THEME);
   console.log("wrote", OUT);
