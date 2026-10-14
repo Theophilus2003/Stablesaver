@@ -565,11 +565,101 @@ async function main() {
       "",
       "Be precise: the screenshot uses demo data, and the Solana row is an illustration at the same rate. Network fees are fixed per-network estimates for one deposit and one withdrawal, not live gas prices. Bridging costs aren't counted yet.",
       "",
+      "Transition: Fees are one question. Here are four more the app now answers.",
+    ].join("\n"));
+  }
+
+  /* ---------- 7. New in the comparison app ---------- */
+  {
+    const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Product" });
+    s.addText("Four more questions answered before you deposit", { placeholder: "title" });
+    const gap = 0.3;
+    const cw = (CW - gap) / 2;
+    const ch = 2.3;
+    const TX = 2.4; // text column width inside a card
+    const features = [
+      {
+        label: "FIND IDLE MONEY", q: "Is money sitting idle in my wallet?",
+        body: "Paste any Solana address: read-only, and it fills the calculator.",
+        shot: "08-idle-money", alt: "Find idle money: this wallet holds $1,240.51 USDC and $300 USDT, earning nothing; about +$103 a year on Kamino",
+      },
+      {
+        label: "CAN I WITHDRAW TODAY?", q: "Can I get my money out today?",
+        body: "Cash free in the lending pool right now, versus your amount.",
+        shot: "10-withdraw-today", alt: "Can I withdraw today? Yes, today: $31.8M is free to withdraw right now; 87% of the pool is lent out",
+      },
+      {
+        label: "US T-BILL COMPARISON", q: "Is it worth the crypto risk?",
+        body: "Every list starts with US Treasury bills, from the Treasury's own data.",
+        chart: true,
+      },
+      {
+        label: "SHARE MY ESTIMATE", q: "Can I show someone?",
+        body: "One click copies a link that previews as this card.",
+        shot: "11-share-card", alt: "Share card: On $1,000 USDC, I could earn +$83.28 a year at 8.33% on Kamino, Solana, grade B",
+      },
+    ];
+    features.forEach((ft, i) => {
+      const x = X0 + (i % 2) * (cw + gap);
+      const y = TOP + Math.floor(i / 2) * (ch + gap);
+      card(s, { x, y, w: cw, h: ch, fill: SURFACE, line: BORDER, name: `feature-${i}` });
+      text(s, ft.label, { x: x + 0.3, y: y + 0.28, w: TX, h: 0.26, fontSize: 10, bold: true, color: GREEN, charSpacing: 1.5 });
+      text(s, ft.q, { x: x + 0.3, y: y + 0.62, w: TX - 0.1, h: 0.62, fontSize: 16, bold: true, lineSpacingMultiple: 0.95 });
+      text(s, ft.body, { x: x + 0.3, y: y + 1.33, w: TX - 0.1, h: 0.78, fontSize: 11.5, color: MUTED, lineSpacingMultiple: 1.05 });
+      const box = { x: x + TX + 0.5, y: y + 0.2, w: cw - TX - 0.7, h: ch - 0.4 };
+      if (ft.chart) {
+        // Demo data, same as the screenshots: T-bills vs the top options for $1,000, Balanced.
+        const rows = [["US T-bills", 4.0], ["Kamino · A", 5.15], ["Drift · A", 5.57], ["Kamino JLP · B", 8.33]];
+        s.addChart(pres.ChartType.bar, [{ name: "Rate", labels: rows.map((r) => r[0]).reverse(), values: rows.map((r) => r[1]).reverse() }], {
+          ...box,
+          barDir: "bar",
+          chartColors: [HEX.purple, HEX.purple, HEX.purple, HEX.muted],
+          barGapWidthPct: 40,
+          showValue: true,
+          dataLabelPosition: "outEnd",
+          dataLabelColor: HEX.white,
+          dataLabelFontSize: 11,
+          dataLabelFontFace: "+mn-lt",
+          dataLabelFormatCode: '0.00"%"',
+          catAxisLabelColor: HEX.white,
+          catAxisLabelFontSize: 11,
+          catAxisLabelFontFace: "+mn-lt",
+          catAxisLineShow: false,
+          valAxisHidden: true,
+          valAxisMinVal: 0,
+          valAxisMaxVal: 10.5,
+          valGridLine: { style: "none" },
+          catGridLine: { style: "none" },
+          showLegend: false,
+          showTitle: false,
+          objectName: "tbill-chart",
+        });
+      } else {
+        const sh = shots[ft.shot];
+        const f = fit(sh.px, box);
+        card(s, { x: f.x - 0.04, y: f.y - 0.04, w: f.w + 0.08, h: f.h + 0.08, fill: NAVY, line: BORDER, radius: 0.08, name: `${ft.shot}-frame` });
+        s.addImage({ path: sh.file, ...f, altText: ft.alt, objectName: ft.shot });
+      }
+    });
+    caption(s, "Real interface · local build, demo data · the wallet scan used a stand-in balance", { x: X0, y: TOP + 2 * ch + gap + 0.12, w: CW });
+    s.addNotes([
+      "TIME: about 35 seconds.",
+      "",
+      "Key message: the app now answers the questions people ask right after \"what's the rate?\", before they move any money.",
+      "",
+      "Talking points:",
+      "- Is money sitting idle? Paste any Solana address. StableSave reads its USDC and USDT, read-only, nothing to sign, and drops the amount into the calculator. Most people have stablecoins doing nothing.",
+      "- Can I get it out today? For lending pools it compares the cash that's free right now with your amount, using the pool's own supply and borrow numbers. Yes today, likely, tight, or wait.",
+      "- Is it worth the risk? Every list starts with US Treasury bills, straight from the US Treasury's data. If an option barely beats T-bills, the extra crypto risk may not be worth it.",
+      "- Can I show someone? \"Share my estimate\" copies a link that unfurls as a card with the estimate. That's how this spreads.",
+      "",
+      "Honesty: demo data on the slide. The T-bill chart uses the demo figure (4.00%) and the same demo options as the screenshots; the live site uses the Treasury's latest average rate. The wallet result is a stand-in balance captured locally.",
+      "",
       "Transition: That's the comparison app, which is live. Now the second, separate part: the Solana vault.",
     ].join("\n"));
   }
 
-  /* ---------- 7. Solana engineering ---------- */
+  /* ---------- 8. Solana engineering ---------- */
   pres.addSection({ title: "Solana vault" });
   {
     const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Solana vault" });
@@ -655,11 +745,97 @@ async function main() {
       "",
       "Do NOT claim: that deposits earn market yield, that funds go to Kamino, MarginFi, Drift or Save yet, or that it's audited. The practice pools pay fixed practice rates from a sponsor pot of test tokens; real protocol integration is next.",
       "",
+      "Transition: Here's that split working.",
+    ].join("\n"));
+  }
+
+  /* ---------- 9. Practice pools and the Blink ---------- */
+  {
+    const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Solana vault" });
+    s.addText("The vault now splits every deposit, and a test proves it", { placeholder: "title" });
+    const LW = 6.75;
+    const pools = shots["12-vault-pools"];
+    const fp = screenshot(s, pools.file, pools.px, { x: X0 + 0.06, y: TOP + 0.06, w: LW - 0.12, h: 3.4 }, {
+      alt: "Where the vault's money is: $100.00 in total; $20.00 kept liquid for withdrawals; Kamino practice pool $36.00 at 5.20%; MarginFi $24.00 at 5.90%; Save $20.00 at 5.05%",
+      name: "shot-pools",
+    });
+    const blink = shots["13-blink"];
+    const fb = screenshot(s, blink.file, blink.px, { x: X0 + 0.06, y: fp.y + fp.h + 0.3, w: LW - 0.12, h: 0.9 }, {
+      alt: "Deposit from a link: a Solana Blink anyone with test USDC can use from a post or a QR code. Copy link, Open Blink",
+      name: "shot-blink",
+    });
+    caption(s, "Real interface · local build · the pools card shows the rehearsal's split", { x: fb.x - 0.06, y: fb.y + fb.h + 0.12, w: LW });
+
+    // The CI rehearsal, as a chart.
+    const RX = X0 + LW + 0.35;
+    const RW = CW - LW - 0.35;
+    const RH = fb.y + fb.h + 0.06 - TOP;
+    card(s, { x: RX, y: TOP, w: RW, h: RH, fill: SURFACE, line: GREEN, name: "rehearsal-card" });
+    text(s, "CHECKED ON EVERY CHANGE", { x: RX + 0.3, y: TOP + 0.25, w: RW - 0.6, h: 0.26, fontSize: 10, bold: true, color: GREEN, charSpacing: 1.5 });
+    text(s, "A real deposit and withdrawal on a local Solana validator, in GitHub Actions (test USDC)", {
+      x: RX + 0.3, y: TOP + 0.55, w: RW - 0.6, h: 0.5, fontSize: 12, color: MUTED,
+    });
+    s.addChart(pres.ChartType.bar, [
+      { name: "Kept liquid", labels: ["After depositing 100", "After withdrawing 40"].reverse(), values: [20, 0].reverse() },
+      { name: "In practice pools", labels: ["After depositing 100", "After withdrawing 40"].reverse(), values: [80, 60].reverse() },
+    ], {
+      x: RX + 0.15, y: TOP + 1.05, w: RW - 0.3, h: 1.65,
+      barDir: "bar",
+      barGrouping: "stacked",
+      chartColors: [HEX.muted, HEX.green],
+      barGapWidthPct: 45,
+      showValue: true,
+      dataLabelPosition: "ctr",
+      dataLabelColor: HEX.navy,
+      dataLabelFontSize: 11,
+      dataLabelFontFace: "+mn-lt",
+      dataLabelFormatCode: "0;;;",
+      catAxisLabelColor: HEX.white,
+      catAxisLabelFontSize: 11,
+      catAxisLabelFontFace: "+mn-lt",
+      catAxisLineShow: false,
+      valAxisHidden: true,
+      valAxisMinVal: 0,
+      valAxisMaxVal: 100,
+      valGridLine: { style: "none" },
+      catGridLine: { style: "none" },
+      showLegend: true,
+      legendPos: "b",
+      legendColor: HEX.white,
+      legendFontSize: 11,
+      legendFontFace: "+mn-lt",
+      showTitle: false,
+      objectName: "rehearsal-chart",
+    });
+    const checks = [
+      ["Split by strategy", "80 into three pools, 20 kept liquid"],
+      ["Pools top up withdrawals", "The 20 short came back from the pools"],
+      ["The books match", "Wallet 940 and pools 60, read on-chain"],
+    ];
+    checks.forEach(([head, body], i) => {
+      const y = TOP + 2.88 + i * 0.57;
+      s.addImage({ data: ic.check, x: RX + 0.3, y: y + 0.03, w: 0.3, h: 0.3, altText: "Passed" });
+      text(s, head, { x: RX + 0.75, y, w: RW - 1.0, h: 0.28, fontSize: 13, bold: true });
+      text(s, body, { x: RX + 0.75, y: y + 0.27, w: RW - 1.0, h: 0.26, fontSize: 11, color: MUTED });
+    });
+    s.addNotes([
+      "TIME: about 35 seconds.",
+      "",
+      "Key message: the split into pools isn't a drawing. The program does it, and an automated test proves it on every change.",
+      "",
+      "Talking points:",
+      "- Left: the Vault page reads the whole vault from the chain. 20% stays liquid for withdrawals; the rest sits in one practice pool per protocol, by the strategy weights: here 45, 30 and 25% of the invested part for Kamino, MarginFi and Save.",
+      "- Anyone can press \"Collect interest & rebalance\". It pays each pool its practice interest from a sponsor pot, and it can only move money toward the on-chain strategy.",
+      "- Right: on every push, GitHub Actions deploys the program to a local Solana validator, deposits 100 test USDC, checks the 80/20 split, then withdraws 40. The reserve only had 20, so the program pulled the other 20 from the pools. The wallet ends at 940 and the pools at 60: the books match.",
+      "- Bottom left: the deposit Blink. The same deposit works from a link or a QR code, in any wallet or app that reads Solana Actions, without opening the site.",
+      "",
+      "Honesty: these are practice pools with fixed practice rates, paid in worthless test tokens. Not market yield, not audited, devnet only. The pools card in the screenshot is the real component showing the rehearsal's numbers.",
+      "",
       "Transition: Each of those controls is a trade-off, so let me be explicit about them.",
     ].join("\n"));
   }
 
-  /* ---------- 8. Safety controls ---------- */
+  /* ---------- 10. Safety controls ---------- */
   {
     const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Solana vault" });
     s.addText("Security is not a badge. It is a set of explicit trade-offs", { placeholder: "title" });
@@ -671,7 +847,7 @@ async function main() {
       [ic.pause, "Guardian pause", "Only the authority unpauses", "Fast stop; no escape hatch yet"],
       [ic.key, "Role-based admin", "Two-step authority handover", "One powerful key today"],
       [ic.calc, "Virtual share offset", "1,000 shares, 1 asset", "Stops share-price inflation"],
-      [ic.test, "Automated tests", "10 unit + 5 integration", "Plus a local deploy rehearsal"],
+      [ic.test, "Automated tests", "14 unit + 10 integration", "Plus a local deploy rehearsal"],
     ];
     const cols = 4;
     const gap = 0.25;
@@ -712,7 +888,7 @@ async function main() {
     ].join("\n"));
   }
 
-  /* ---------- 9. Live demo ---------- */
+  /* ---------- 11. Live demo ---------- */
   pres.addSection({ title: "Demo" });
   {
     const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Demo" });
@@ -778,7 +954,7 @@ async function main() {
     ].join("\n"));
   }
 
-  /* ---------- 10. Status ---------- */
+  /* ---------- 12. Status ---------- */
   pres.addSection({ title: "Status and roadmap" });
   {
     const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Status and roadmap" });
@@ -827,7 +1003,7 @@ async function main() {
     ].join("\n"));
   }
 
-  /* ---------- 11. Roadmap ---------- */
+  /* ---------- 13. Roadmap ---------- */
   {
     const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Status and roadmap" });
     s.addText([{ text: "From useful comparison tool", options: { breakLine: true } }, { text: "to a more complete on-chain system" }], { placeholder: "title" });
@@ -873,7 +1049,7 @@ async function main() {
     ].join("\n"));
   }
 
-  /* ---------- 12. Closing ---------- */
+  /* ---------- 14. Closing ---------- */
   pres.addSection({ title: "Close" });
   {
     const s = pres.addSlide({ masterName: "COVER", sectionTitle: "Close" });

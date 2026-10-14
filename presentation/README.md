@@ -7,7 +7,7 @@
 
 | File | What it is |
 | --- | --- |
-| `StableSave-Demo-Day.pptx` | The editable deck: 12 slides, 16:9, with speaker notes on every slide |
+| `StableSave-Demo-Day.pptx` | The editable deck: 14 slides, 16:9, with speaker notes on every slide |
 | `StableSave-Demo-Day.pdf` | The same deck as a PDF, with the Inter font embedded (use it as the backup) |
 | `assets/screens/` | Screenshots of the real StableSave interface used in the deck |
 | `assets/graphics/` | Logo (mark and full logo), cover art, content background and the QR code (all original) |
@@ -16,7 +16,7 @@
 
 Source of truth: *StableSave — Project Review Guide*. Technical details were also checked against the code.
 
-## Structure and timing (about 6 minutes, demo separate)
+## Structure and timing (about 8 minutes, demo separate)
 
 | # | Slide | Message | Time |
 | --- | --- | --- | --- |
@@ -26,12 +26,17 @@ Source of truth: *StableSave — Project Review Guide*. Technical details were a
 | 4 | From a balance to a more informed decision | Annotated walkthrough of real screens | 0:45 |
 | 5 | A high APY should never tell the whole story | Nine weighted factors, 75/25 scoring, grade bands, caps | 0:50 |
 | 6 | The return that matters is the return after costs | $100 on Ethereum: fees outweigh a year's interest | 0:35 |
-| 7 | A separate Anchor vault prototype… | Wallet → program checks → Vault / Reserve / UserPosition PDAs | 0:50 |
-| 8 | Security is not a badge… | Eight controls, each with its trade-off; what's not done | 0:40 |
-| 9 | Let's see what works today | Demo runbook: A live app, B devnet vault | 0:15 (+3–4 min demo) |
-| 10 | What is live, what is experimental… | Status matrix and known limitations | 0:35 |
-| 11 | From useful comparison tool… | Four planned phases | 0:30 |
-| 12 | Make stablecoin yield easier to understand… | Contributions, QR code, feedback ask | 0:25 |
+| 7 | Four more questions answered before you deposit | Idle-money scan, withdraw today, US T-bill comparison, share card | 0:35 |
+| 8 | A separate Anchor vault prototype… | Wallet → program checks → Vault / Reserve + pools / UserPosition PDAs | 0:50 |
+| 9 | The vault now splits every deposit, and a test proves it | Pools card, deposit Blink, the CI rehearsal (100 in → 80/20 → withdraw 40) | 0:35 |
+| 10 | Security is not a badge… | Eight controls, each with its trade-off; what's not done | 0:40 |
+| 11 | Let's see what works today | Demo runbook: A live app, B devnet vault | 0:15 (+3–4 min demo) |
+| 12 | What is live, what is experimental… | Status matrix and known limitations | 0:35 |
+| 13 | From useful comparison tool… | Four planned phases | 0:30 |
+| 14 | Make stablecoin yield easier to understand… | Contributions, QR code, feedback ask | 0:25 |
+
+Short on time? Slides 7 and 9 can be cut to one sentence each (the demo shows the same features), and slide 10
+can be reduced to the "Not yet" line.
 
 ## Demo runbook
 
@@ -65,9 +70,17 @@ Say out loud: devnet tokens have no value, and the practice pools pay fixed prac
 ## Assumptions to check before presenting
 
 - **Screenshots use demo data.** They are the real interface, captured from a local build in demo mode, because the live site couldn't be reached from the build environment. Each one is labelled "local build, demo data". If you'd rather show live numbers, take the same screenshots from the live site and replace the files in `assets/screens/` (same names), then rebuild.
-- **The vault thumbnail (slide 9) shows the simulated preview.** With the devnet variables set, the live site shows the same screen sending real devnet transactions.
+- **The vault thumbnail (slide 11) shows the simulated preview.** With the devnet variables set, the live site shows the same screen sending real devnet transactions.
 - **Protocol logos show initials in the screenshots.** The build environment couldn't reach DefiLlama's logo server. The live site loads the real logos.
 - **Slide 5's example comes from the demo data.** Kamino JLP Market: weighted average 81, concentration 37, final score 70 (grade B). The arithmetic is 0.75 × 81 + 0.25 × 37 ≈ 70.
+- **Slide 7's wallet scan used a stand-in balance** ($1,240.51 USDC and $300 USDT), because the build environment
+  couldn't reach Solana mainnet. The T-bill chart uses the demo figure (4.00%); the live site uses the US Treasury's
+  latest average rate. The share card was rendered by the site's own `/api/og` route; only its corner domain was set
+  to `stablesaver-web.vercel.app`, since the local build printed `localhost`.
+- **Slide 9's pools card shows the CI rehearsal's numbers** (100 deposited: 20 kept liquid; 36, 24 and 20 in the
+  Kamino, MarginFi and Save practice pools), drawn by the real component. The chart and checks come from the
+  "Vault program" GitHub Actions run on `main`: deposit 100 → 80 in three pools and 20 liquid; withdraw 40 → the
+  20 short came from the pools; wallet 940, pools 60.
 - **Slide 6's Solana row is illustrative.** It uses the same 4.10% rate with StableSave's Solana fee estimate ($0.02). The Ethereum row matches the screenshot ($12 estimate, −$7.90).
 - **Panel headings changed.** The review guide mentions "Why this grade?" and "What could go wrong?". The current interface shows "How risky is it?" plus a risk note, and the deck uses the current headings.
 - **Font:** the deck uses Inter. Install it from Google Fonts (free) on the presenting computer, or PowerPoint will substitute a different font and spacing may shift. The PDF already embeds it.
