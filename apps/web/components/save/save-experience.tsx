@@ -19,6 +19,7 @@ import { OptionsSection } from "@/components/options/options-section";
 import { formatAmountInput, parseAmount } from "@/lib/format";
 import { AmountField } from "./amount-field";
 import { EarningsPanel } from "./earnings-panel";
+import { IdleMoney } from "./idle-money";
 import { MarketSummaryStrip } from "./market-summary";
 import { RiskSelector } from "./risk-selector";
 import { ShareEstimate } from "./share-estimate";
@@ -99,6 +100,20 @@ export function SaveExperience({
     setPinnedId(null);
   }
 
+  const estimateFor = React.useCallback(
+    (value: number, a: StableAsset) => {
+      const r = recommend({ amount: value, asset: a, profile, opportunities: snapshot.opportunities });
+      const pick = r.best ?? r.closest;
+      return pick ? { net: pick.estimate.netEarnings, protocolName: pick.opportunity.protocolName } : null;
+    },
+    [profile, snapshot.opportunities],
+  );
+
+  function useWalletAmount(value: number, a: StableAsset) {
+    setAmountText(formatAmountInput(String(Math.floor(value))));
+    changeAsset(a);
+  }
+
   const demo = snapshot.mode === "demo";
   const unavailable = snapshot.opportunities.length === 0;
 
@@ -120,7 +135,9 @@ export function SaveExperience({
           See what your stablecoins could earn. Compare yield and risk.
         </p>
 
-        <Card className="mt-10 border-brand/15 p-1.5 shadow-[0_40px_120px_-48px_rgb(61_220_151/0.45),0_24px_80px_-32px_rgb(0_0_0/0.8)] sm:p-2">
+        {!unavailable ? <IdleMoney estimate={estimateFor} onUse={useWalletAmount} className="mt-7" /> : null}
+
+        <Card className="mt-7 border-brand/15 p-1.5 shadow-[0_40px_120px_-48px_rgb(61_220_151/0.45),0_24px_80px_-32px_rgb(0_0_0/0.8)] sm:p-2">
           <div className="px-4 pb-5 pt-4 sm:px-5 sm:pt-5">
             <AmountField
               value={amountText}
