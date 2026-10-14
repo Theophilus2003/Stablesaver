@@ -16,6 +16,7 @@ const ACTION_PATH = "/api/actions/deposit";
 type Status =
   | { phase: "idle" }
   | { phase: "building" | "signing" }
+  | { phase: "confirming"; signature: string }
   | { phase: "done"; signature: string; message?: string }
   | { phase: "error"; message: string };
 
@@ -62,7 +63,7 @@ export function BlinkPreview() {
       .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : String(e)));
   }, []);
 
-  const busy = status.phase === "building" || status.phase === "signing";
+  const busy = status.phase === "building" || status.phase === "signing" || status.phase === "confirming";
 
   async function run(action: LinkedAction) {
     if (!publicKey) {
@@ -90,7 +91,8 @@ export function BlinkPreview() {
       const tx = Transaction.from(base64ToBytes(body.transaction));
       setStatus({ phase: "signing" });
       // Simulated on this cluster, signed by the wallet, sent by us (refreshes the blockhash too).
-      const signature = await submitTransaction({ connection, sendTransaction, signTransaction }, tx);
+      const onSent = (signature: string) => setStatus({ phase: "confirming", signature });
+      const signature = await submitTransaction({ connection, sendTransaction, signTransaction, onSent }, tx);
       setStatus({ phase: "done", signature, message: body.message });
     } catch (error) {
       setStatus({ phase: "error", message: describeTxError(error) });
@@ -196,6 +198,14 @@ export function BlinkPreview() {
                   <span>
                     {status.phase === "building" && "Building the transaction…"}
                     {status.phase === "signing" && `Approve it in your wallet, then it goes to ${CLUSTER_LABEL[env.cluster]}…`}
+                    {status.phase === "confirming" ? (
+                      <>
+                        Sent. Waiting for {CLUSTER_LABEL[env.cluster]} to confirm it…{" "}
+                        <a href={explorerTxUrl(status.signature, env.cluster)} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+                          View on Explorer
+                        </a>
+                      </>
+                    ) : null}
                     {status.phase === "error" && status.message}
                     {status.phase === "done" ? (
                       <>

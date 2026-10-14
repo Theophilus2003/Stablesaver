@@ -1,5 +1,5 @@
 import { address, createSolanaRpc, type Address, type Instruction } from "@solana/kit";
-import { PublicKey, Transaction, type Connection } from "@solana/web3.js";
+import { ComputeBudgetProgram, PublicKey, Transaction, type Connection } from "@solana/web3.js";
 import {
   buildCancelWithdrawalInstruction,
   buildDepositInstruction,
@@ -254,6 +254,64 @@ export interface SendContext {
   sendTransaction: (tx: Transaction, connection: Connection) => Promise<string>;
   /** When the wallet offers it, it only signs and the site sends (see submitTransaction). */
   signTransaction?: (tx: Transaction) => Promise<Transaction>;
+  /** Called once the transaction is on its way, before it confirms. */
+  onSent?: (signature: string) => void;
+}
+
+const POLL_MS = 2_000;
+/** Priority fee in micro-lamports per compute unit: at least this, more when recent fees are higher. */
+const MIN_PRIORITY_FEE = 50_000;
+const MAX_PRIORITY_FEE = 1_000_000;
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+async function attempt<T>(fn: () => Promise<T>): Promise<T | null> {
+  try {
+    return await fn();
+  } catch {
+    return null;
+  }
+}
+
+/** Adds a small priority fee (unless the transaction already sets one) so busy leaders don't skip it. */
+async function addPriorityFee(connection: Connection, tx: Transaction): Promise<void> {
+  if (tx.instructions.some((ix) => ix.programId.equals(ComputeBudgetProgram.programId))) return;
+  const writable = [...new Map(tx.instructions.flatMap((ix) => ix.keys.filter((k) => k.isWritable).map((k) => [k.pubkey.toBase58(), k.pubkey] as const))).values()];
+  const recent = await attempt(() => connection.getRecentPrioritizationFees({ lockedWritableAccounts: writable.slice(0, 128) }));
+  const fees = (recent ?? []).map((f) => f.prioritizationFee).sort((a, b) => a - b);
+  const median = fees.length ? fees[Math.floor(fees.length / 2)]! : 0;
+  const microLamports = Math.min(MAX_PRIORITY_FEE, Math.max(MIN_PRIORITY_FEE, median));
+  tx.instructions = [ComputeBudgetProgram.setComputeUnitPrice({ microLamports }), ...tx.instructions];
+}
+
+/**
+ * Waits for the signature by polling (no websocket), sending the transaction again every couple
+ * of seconds while it is pending. Gives up only once the blockhash has expired and a final lookup
+ * still can't find it, so "expired" means it can no longer land.
+ */
+async function waitForConfirmation(
+  connection: Connection,
+  signature: string,
+  expired: () => Promise<boolean>,
+  resend?: () => Promise<unknown>,
+): Promise<void> {
+  const check = async (searchTransactionHistory: boolean) => {
+    const res = await attempt(() => connection.getSignatureStatuses([signature], { searchTransactionHistory }));
+    const status = res?.value[0];
+    if (status?.err) throw new Error(`Transaction failed: ${JSON.stringify(status.err)}`);
+    return status?.confirmationStatus === "confirmed" || status?.confirmationStatus === "finalized";
+  };
+  while (!(await check(false))) {
+    if (await expired()) {
+      for (let i = 0; i < 3; i++) {
+        if (await check(true)) return;
+        await sleep(POLL_MS);
+      }
+      throw new Error(`Signature ${signature} has expired: block height exceeded.`);
+    }
+    if (resend) await attempt(resend);
+    await sleep(POLL_MS);
+  }
 }
 
 /**
@@ -262,25 +320,42 @@ export interface SendContext {
  * problems (no SOL for fees, not enough tokens, a program check) show before the wallet opens.
  */
 export async function submitTransaction(
-  ctx: Pick<SendContext, "connection" | "sendTransaction" | "signTransaction">,
+  ctx: Pick<SendContext, "connection" | "sendTransaction" | "signTransaction" | "onSent">,
   tx: Transaction,
 ): Promise<string> {
   const { connection } = ctx;
+  await addPriorityFee(connection, tx);
   const latest = await connection.getLatestBlockhash("confirmed");
   tx.recentBlockhash = latest.blockhash;
   const simulation = await connection.simulateTransaction(tx);
   if (simulation.value.err) {
     throw new Error(`Simulation failed: ${JSON.stringify(simulation.value.err)} ${(simulation.value.logs ?? []).join(" ")}`);
   }
-  let signature: string;
-  if (ctx.signTransaction) {
-    const signed = await ctx.signTransaction(tx);
-    signature = await connection.sendRawTransaction(signed.serialize(), { preflightCommitment: "confirmed" });
-  } else {
-    signature = await ctx.sendTransaction(tx, connection);
+  const pastBlockHeight = async () => {
+    const height = await attempt(() => connection.getBlockHeight("confirmed"));
+    return height !== null && height > latest.lastValidBlockHeight;
+  };
+
+  if (!ctx.signTransaction) {
+    const signature = await ctx.sendTransaction(tx, connection);
+    ctx.onSent?.(signature);
+    await waitForConfirmation(connection, signature, pastBlockHeight);
+    return signature;
   }
-  const result = await connection.confirmTransaction({ signature, ...latest }, "confirmed");
-  if (result.value.err) throw new Error(`Transaction failed: ${JSON.stringify(result.value.err)}`);
+
+  const signed = await ctx.signTransaction(tx);
+  const raw = signed.serialize();
+  const signature = await connection.sendRawTransaction(raw, { preflightCommitment: "confirmed", maxRetries: 0 });
+  ctx.onSent?.(signature);
+  // A wallet may swap in its own blockhash; then ask the cluster whether that one is still valid.
+  const blockhash = signed.recentBlockhash;
+  const expired =
+    blockhash && blockhash !== latest.blockhash
+      ? async () => (await attempt(() => connection.isBlockhashValid(blockhash, { commitment: "confirmed" })))?.value === false
+      : pastBlockHeight;
+  await waitForConfirmation(connection, signature, expired, () =>
+    connection.sendRawTransaction(raw, { skipPreflight: true, maxRetries: 0 }),
+  );
   return signature;
 }
 
@@ -373,7 +448,7 @@ export function describeTxError(error: unknown): string {
   }
   if (/insufficient funds/i.test(message)) return "This wallet doesn't hold enough test USDC for that amount.";
   if (/block height exceeded|has expired/i.test(message)) {
-    return "The transaction didn't reach the network in time. Try again; if it keeps happening, check that your wallet is on Devnet and has a little devnet SOL.";
+    return "The network didn't confirm the transaction before it expired, so nothing left your wallet. Try again; if it keeps happening, check that your wallet is on Devnet and has a little devnet SOL.";
   }
   if (/mainnet|mismatch|wrong network|different network|unsupported chain|chain.*not supported/i.test(message)) {
     return "Your wallet is on a different network. Switch it to Devnet (Solflare: Settings → Network; Phantom: Settings → Developer settings → Testnet mode) and try again.";
