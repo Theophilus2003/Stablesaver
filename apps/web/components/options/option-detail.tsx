@@ -23,6 +23,7 @@ import { formatEarnings, formatNetworkFee } from "@/lib/format";
 import { networkBadge, protocolLogoUrls } from "@/lib/logos";
 import { RateChart } from "./rate-chart";
 import { useRateHistory, type RateHistoryState } from "./use-rate-history";
+import { WithdrawCheckCard } from "./withdraw-check";
 
 export interface OptionDetailProps {
   opportunity: RatedOpportunity;
@@ -43,6 +44,10 @@ export function OptionDetail({ opportunity: o, amount, standalone = false }: Opt
       ) : null}
       <RateSection opportunity={o} history={history} />
       <EarningsSection opportunity={o} amount={amount} />
+      <section>
+        <SectionTitle>Can I withdraw today?</SectionTitle>
+        <WithdrawCheckCard opportunity={o} amount={amount} />
+      </section>
       <InterestSource opportunity={o} />
       <RiskSection opportunity={o} />
       <DepositSteps opportunity={o} />
@@ -529,11 +534,6 @@ function Disclaimer({ opportunity: o }: { opportunity: RatedOpportunity }) {
   }
   if (o.strategyType === "yield") {
     extras.push(`We haven't reviewed how ${o.protocolName} earns this yield. Read its docs first: some strategies use leverage or trading.`);
-  }
-  if (o.risk.withdrawalDelayHours > 0) {
-    extras.push(`Withdrawals take about ${Math.max(1, Math.round(o.risk.withdrawalDelayHours / 24))} days to arrive.`);
-  } else if (o.risk.utilization !== null && o.risk.utilization >= 0.9) {
-    extras.push(`${formatPercent(o.risk.utilization, 0)} of this pool is lent out, so large withdrawals may have to wait.`);
   }
   if (o.network !== "solana") {
     extras.push(

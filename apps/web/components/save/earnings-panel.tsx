@@ -6,6 +6,7 @@ import { ChevronRight, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { formatEarnings, formatNetworkFee } from "@/lib/format";
 import { networkBadge, protocolLogoUrls } from "@/lib/logos";
+import { WithdrawHint } from "@/components/options/withdraw-check";
 
 export interface EarningsPanelProps {
   option: RankedOption | null;
@@ -116,6 +117,7 @@ export function EarningsPanel({
             <span className="text-fg-muted">
               After ~{formatNetworkFee(option!.estimate.totalFees)} in {option!.estimate.depositFee + option!.estimate.withdrawalFee > 0 ? "fees" : "network fees"}
             </span>
+            <WithdrawHint opportunity={o} amount={amount} className="basis-full sm:basis-auto" />
           </div>
           <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-4 text-xs">
             <span className="min-w-0 truncate text-fg-muted">
