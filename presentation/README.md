@@ -10,7 +10,7 @@
 | `StableSave-Demo-Day.pptx` | The editable deck: 12 slides, 16:9, with speaker notes on every slide |
 | `StableSave-Demo-Day.pdf` | The same deck as a PDF, with the Inter font embedded (use it as the backup) |
 | `assets/screens/` | Screenshots of the real StableSave interface used in the deck |
-| `assets/graphics/` | Logo mark, cover art, content background and the QR code (all original) |
+| `assets/graphics/` | Logo (mark and full logo), cover art, content background and the QR code (all original) |
 | `assets/previews/` | One image per slide, for a quick look without opening the deck |
 | `build/` | The scripts that generate the graphics and the deck |
 
@@ -73,7 +73,8 @@ Say out loud: devnet tokens have no value, and the vault doesn't move funds into
 ```bash
 cd presentation/build
 npm install
-npm run graphics   # logo, backgrounds (QR code: see below)
+npm run brand      # logo files for the site, docs and deck (apps/web/public/brand)
+npm run graphics   # deck logo, backgrounds (QR code: see below)
 npm run deck       # writes ../StableSave-Demo-Day.pptx
 ```
 

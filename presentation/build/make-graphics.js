@@ -1,14 +1,16 @@
-// Original graphics for the deck: logo mark, cover art, section glow. Rendered from SVG with sharp.
+// Original graphics for the deck: logo mark and full logo, cover art, section glow. Rendered from SVG with sharp.
 const sharp = require("sharp");
 const path = require("path");
 const out = (f) => path.join(__dirname, "..", "assets", "graphics", f);
 
+// The StableSave "Level" mark (same drawing as make-brand.js), centred on a square canvas for the deck's footer.
 const mark = (size) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${size}" height="${size}">
-  <defs><linearGradient id="g" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#9945FF"/><stop offset="1" stop-color="#14F195"/></linearGradient></defs>
-  <rect x="3" y="14.5" width="18" height="6" rx="3" fill="url(#g)" opacity="0.38"/>
-  <rect x="5" y="9" width="14" height="6" rx="3" fill="url(#g)" opacity="0.68"/>
-  <rect x="7" y="3.5" width="10" height="6" rx="3" fill="url(#g)"/>
+  <rect x="2.2" y="6.6" width="19.6" height="10.8" rx="5.4" fill="#3DDC97" fill-opacity="0.14" stroke="#3DDC97" stroke-width="1.8"/>
+  <path d="M7.4 9.7v4.6M16.6 9.7v4.6" stroke="#3DDC97" stroke-width="1.4" stroke-linecap="round" stroke-opacity="0.6"/>
+  <circle cx="12" cy="12" r="3" fill="#3DDC97"/>
 </svg>`;
+// Full logo (mark + wordmark) for dark slides, from the brand files the site uses.
+const LOCKUP = path.join(__dirname, "..", "..", "apps", "web", "public", "brand", "stablesave-logo-dark.svg");
 
 // Cover: deep navy, two soft glows, a few rising "yield" curves and protocol nodes on the right.
 function cover(w, h) {
@@ -50,6 +52,7 @@ function gradient(w, h) {
 
 (async () => {
   await sharp(Buffer.from(mark(512))).png().toFile(out("logo-mark.png"));
+  await sharp(LOCKUP, { density: 600 }).resize({ width: 1600 }).png().toFile(out("logo-lockup.png"));
   await sharp(Buffer.from(cover(1920, 1080))).png().toFile(out("cover-bg.png"));
   await sharp(Buffer.from(plain(1920, 1080))).png().toFile(out("content-bg.png"));
   await sharp(Buffer.from(gradient(1200, 24))).png().toFile(out("gradient-pill.png"));

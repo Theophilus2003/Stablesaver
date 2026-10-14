@@ -172,7 +172,9 @@ async function main() {
   const shots = {};
   for (const f of fs.readdirSync(ASSET("screens"))) shots[f.replace(/\.png$/, "")] = { file: ASSET("screens", f), px: await size(ASSET("screens", f)) };
   const qr = ASSET("graphics", "qr-stablesaver.png");
-  const mark = ASSET("graphics", "logo-mark.png");
+  const lockup = { file: ASSET("graphics", "logo-lockup.png"), px: await size(ASSET("graphics", "logo-lockup.png")) };
+  const logo = (s, h, extra = {}) =>
+    s.addImage({ path: lockup.file, x: X0, y: 0.62, h, w: (h * lockup.px.w) / lockup.px.h, altText: "StableSave logo", ...extra });
   const ic = {
     layers: await icon(Lu.LuLayers, HEX.muted),
     trend: await icon(Lu.LuTrendingUp, HEX.green),
@@ -199,8 +201,7 @@ async function main() {
   pres.addSection({ title: "Opening" });
   {
     const s = pres.addSlide({ masterName: "COVER", sectionTitle: "Opening" });
-    s.addImage({ path: mark, x: X0, y: 0.62, w: 0.46, h: 0.46, altText: "StableSave logo: three stacked coins", objectName: "logo-mark" });
-    text(s, "StableSave", { x: X0 + 0.6, y: 0.62, w: 4, h: 0.46, fontSize: 24, bold: true, valign: "middle", objectName: "wordmark" });
+    logo(s, 0.42, { objectName: "logo" });
     text(s, "STABLECOIN YIELD INTELLIGENCE  +  SOLANA VAULT PROTOTYPE", { x: X0, y: 2.05, w: 8, h: 0.3, fontSize: 11, bold: true, color: GREEN, charSpacing: 2, objectName: "descriptor" });
     text(s, [
       { text: "Know the risk before you ", options: { color: INK } },
@@ -876,8 +877,7 @@ async function main() {
   pres.addSection({ title: "Close" });
   {
     const s = pres.addSlide({ masterName: "COVER", sectionTitle: "Close" });
-    s.addImage({ path: mark, x: X0, y: 0.62, w: 0.4, h: 0.4, altText: "StableSave logo" });
-    text(s, "StableSave", { x: X0 + 0.55, y: 0.62, w: 4, h: 0.4, fontSize: 20, bold: true, valign: "middle" });
+    logo(s, 0.36);
     text(s, "Make stablecoin yield easier to understand before making it easier to chase.", {
       x: X0, y: 1.55, w: 8.2, h: 1.7, fontSize: 36, bold: true, lineSpacingMultiple: 0.95,
     });
