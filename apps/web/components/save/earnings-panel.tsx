@@ -1,10 +1,10 @@
 "use client";
 
-import { GRADE_LABELS, RISK_PROFILES, getNetwork, type RankedOption, type RiskProfile } from "@stablesave/core";
+import { GRADE_LABELS, RISK_PROFILES, getNetwork, type Benchmark, type RankedOption, type RiskProfile } from "@stablesave/core";
 import { AnimatedNumber, Badge, GradeBadge, Panel, ProtocolMark, cn } from "@stablesave/ui";
 import { ChevronRight, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { formatEarnings, formatNetworkFee } from "@/lib/format";
+import { formatEarnings, formatNetworkFee, formatPercent } from "@/lib/format";
 import { networkBadge, protocolLogoUrls } from "@/lib/logos";
 import { WithdrawHint } from "@/components/options/withdraw-check";
 
@@ -19,6 +19,8 @@ export interface EarningsPanelProps {
   onUnpin: () => void;
   /** No market data at all (e.g. the live source is down). */
   unavailable?: boolean;
+  /** No-crypto reference rate, when it loaded. */
+  benchmark?: Benchmark | null;
 }
 
 export function EarningsPanel({
@@ -30,6 +32,7 @@ export function EarningsPanel({
   onOpen,
   onUnpin,
   unavailable = false,
+  benchmark = null,
 }: EarningsPanelProps) {
   const o = option?.opportunity;
   const network = o ? getNetwork(o.network, o.networkName) : null;
@@ -119,6 +122,12 @@ export function EarningsPanel({
             </span>
             <WithdrawHint opportunity={o} amount={amount} className="basis-full sm:basis-auto" />
           </div>
+          {benchmark && !empty ? (
+            <p className="mt-3 text-xs leading-relaxed text-fg-muted">
+              For comparison, US Treasury bills pay about {formatPercent(benchmark.rate)} ({formatEarnings(amount * benchmark.rate)} a year)
+              {benchmark.mode === "demo" ? " in this demo" : ""}, with no crypto risk.
+            </p>
+          ) : null}
           <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-4 text-xs">
             <span className="min-w-0 truncate text-fg-muted">
               {o.marketName} · {network!.name}

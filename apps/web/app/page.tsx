@@ -1,4 +1,5 @@
 import { SaveExperience } from "@/components/save/save-experience";
+import { getBenchmark } from "@/lib/data/benchmark";
 import { getMarketSnapshot } from "@/lib/data/snapshot";
 import { parseAmountParam, parseAssetParam, parseRiskParam, parseStringParam, type SearchParams } from "@/lib/search-params";
 
@@ -6,11 +7,12 @@ export const revalidate = 60;
 
 export default async function HomePage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const snapshot = await getMarketSnapshot();
+  const [snapshot, benchmark] = await Promise.all([getMarketSnapshot(), getBenchmark()]);
 
   return (
     <SaveExperience
       snapshot={snapshot}
+      benchmark={benchmark}
       initial={{
         amount: parseAmountParam(params.amount),
         asset: parseAssetParam(params.asset),

@@ -4,6 +4,7 @@ import {
   EXAMPLE_VAULT_STRATEGIES,
   blendStrategy,
   recommend,
+  type Benchmark,
   type MarketSnapshot,
   type RankedOption,
   type RiskProfile,
@@ -33,7 +34,15 @@ export interface SaveInitialState {
  * The main flow: amount → risk → estimate → options → detail.
  * Everything recalculates client-side from the snapshot; nothing is hard-coded.
  */
-export function SaveExperience({ snapshot, initial }: { snapshot: MarketSnapshot; initial: SaveInitialState }) {
+export function SaveExperience({
+  snapshot,
+  benchmark,
+  initial,
+}: {
+  snapshot: MarketSnapshot;
+  benchmark: Benchmark | null;
+  initial: SaveInitialState;
+}) {
   const [amountText, setAmountText] = React.useState(() => formatAmountInput(String(initial.amount)));
   const [asset, setAsset] = React.useState<StableAsset>(initial.asset);
   const [profile, setProfile] = React.useState<RiskProfile>(initial.profile);
@@ -129,6 +138,7 @@ export function SaveExperience({ snapshot, initial }: { snapshot: MarketSnapshot
             onOpen={setOpenId}
             onUnpin={() => setPinnedId(null)}
             unavailable={unavailable}
+            benchmark={benchmark}
           />
           {blend && deferredAmount > 0 ? (
             <div className="pt-1.5 sm:pt-2">
@@ -162,6 +172,7 @@ export function SaveExperience({ snapshot, initial }: { snapshot: MarketSnapshot
         <OptionsSection
           snapshot={snapshot}
           recommendation={recommendation}
+          benchmark={benchmark}
           pinnedId={pinnedId}
           onOpen={setOpenId}
           onTogglePin={(id) => setPinnedId((current) => (current === id ? null : id))}

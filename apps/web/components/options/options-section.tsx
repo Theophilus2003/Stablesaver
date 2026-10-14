@@ -3,6 +3,7 @@
 import {
   getNetwork,
   sortOptions,
+  type Benchmark,
   type MarketSnapshot,
   type NetworkId,
   type NetworkInfo,
@@ -16,6 +17,7 @@ import { motion } from "motion/react";
 import * as React from "react";
 import { formatUsd } from "@/lib/format";
 import { networkBadge } from "@/lib/logos";
+import { BenchmarkRow } from "./benchmark-row";
 import { OptionRow } from "./option-row";
 
 const SORTS: Array<{ value: SortMode; label: string }> = [
@@ -33,12 +35,14 @@ const PAGE_SIZE = 12;
 export function OptionsSection({
   snapshot,
   recommendation,
+  benchmark = null,
   pinnedId,
   onOpen,
   onTogglePin,
 }: {
   snapshot: MarketSnapshot;
   recommendation: Recommendation;
+  benchmark?: Benchmark | null;
   pinnedId: string | null;
   onOpen: (id: string) => void;
   onTogglePin: (id: string) => void;
@@ -90,6 +94,8 @@ export function OptionsSection({
           setLimit(PAGE_SIZE);
         }}
       />
+
+      {benchmark && snapshot.opportunities.length > 0 ? <BenchmarkRow benchmark={benchmark} amount={recommendation.amount} /> : null}
 
       {snapshot.opportunities.length === 0 ? (
         <UnavailableState snapshot={snapshot} />
