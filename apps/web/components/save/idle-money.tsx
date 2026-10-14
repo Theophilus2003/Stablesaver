@@ -34,6 +34,9 @@ export function IdleMoney({ estimate, onUse, className }: IdleMoneyProps) {
   const [expanded, setExpanded] = React.useState(false);
   const [input, setInput] = React.useState("");
   const [state, setState] = React.useState<ScanState>({ status: "idle" });
+  // The connected wallet is checked once on its own; after that only when asked.
+  const autoScanned = React.useRef<string | null>(null);
+  const [focusInput, setFocusInput] = React.useState(false);
 
   const scan = React.useCallback(async (address: string) => {
     const trimmed = address.trim();
@@ -52,9 +55,12 @@ export function IdleMoney({ estimate, onUse, className }: IdleMoneyProps) {
     }
   }, []);
 
-  // A wallet connected while the panel is open gets checked straight away.
+  // A wallet connected while the panel is open gets checked straight away, once.
   React.useEffect(() => {
-    if (expanded && connected && state.status === "idle") void scan(connected);
+    if (expanded && connected && state.status === "idle" && autoScanned.current !== connected) {
+      autoScanned.current = connected;
+      void scan(connected);
+    }
   }, [expanded, connected, state.status, scan]);
 
   if (!expanded) {
@@ -85,6 +91,8 @@ export function IdleMoney({ estimate, onUse, className }: IdleMoneyProps) {
           onClick={() => {
             setExpanded(false);
             setState({ status: "idle" });
+            autoScanned.current = null;
+            setFocusInput(false);
           }}
           className="flex size-8 shrink-0 items-center justify-center rounded-full text-fg-subtle transition-colors hover:bg-surface-3 hover:text-fg"
         >
@@ -98,7 +106,11 @@ export function IdleMoney({ estimate, onUse, className }: IdleMoneyProps) {
             <Result wallet={state.wallet} estimate={estimate} onUse={onUse} />
             <button
               type="button"
-              onClick={() => setState({ status: "idle" })}
+              onClick={() => {
+                setInput("");
+                setFocusInput(true);
+                setState({ status: "idle" });
+              }}
               className="mt-3 text-xs font-medium text-fg-muted underline decoration-line-strong underline-offset-2 hover:text-fg"
             >
               Check another wallet
@@ -136,6 +148,7 @@ export function IdleMoney({ estimate, onUse, className }: IdleMoneyProps) {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="or paste any Solana address"
+                autoFocus={focusInput}
                 autoComplete="off"
                 spellCheck={false}
                 className="h-10 min-w-0 flex-1 rounded-full border border-line bg-surface-2 px-4 font-mono text-[13px] text-fg outline-none placeholder:font-sans placeholder:text-fg-subtle focus-visible:border-brand/50"
