@@ -1,5 +1,6 @@
 import { GeistSans } from "geist/font/sans";
 import type { Metadata, Viewport } from "next";
+import { HeroBackdrop } from "@/components/brand/hero-backdrop";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { AppProviders } from "@/components/providers/app-providers";
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#09090a",
+  themeColor: "#070a09",
   colorScheme: "dark",
 };
 
@@ -28,7 +29,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-dvh bg-canvas font-sans text-fg antialiased">
         <AppProviders environment={environment}>
           <SiteHeader />
-          <main>{children}</main>
+          <main className="relative isolate">
+            <HeroBackdrop />
+            {children}
+          </main>
           <SiteFooter />
         </AppProviders>
       </body>

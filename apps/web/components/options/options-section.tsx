@@ -201,7 +201,7 @@ function SortControl({ value, onChange }: { value: SortMode; onChange: (value: S
             onClick={() => onChange(option.value)}
             className={cn(
               "h-8 shrink-0 whitespace-nowrap rounded-full px-3.5 text-[13px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-fg/40",
-              selected ? "bg-canvas font-semibold text-fg shadow-sm" : "text-fg-muted hover:text-fg",
+              selected ? "bg-brand/15 font-semibold text-brand" : "text-fg-muted hover:text-fg",
             )}
           >
             {option.label}
@@ -244,14 +244,14 @@ function NetworkChips({
             onClick={() => onChange(chip.value)}
             className={cn(
               "inline-flex h-10 shrink-0 items-center gap-2 rounded-full px-4 text-[13px] font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-fg/40",
-              selected ? "bg-fg text-canvas" : "bg-surface-2 text-fg hover:bg-surface-3",
+              selected ? "bg-brand text-on-brand shadow-[0_6px_20px_-8px_rgb(61_220_151/0.6)]" : "bg-surface-2 text-fg hover:bg-surface-3",
               chip.network && "pl-2.5",
             )}
           >
             {chip.network ? <NetworkIcon network={networkBadge(chip.network)} className="size-5" /> : null}
             <span className="whitespace-nowrap">{chip.name}</span>
             {chip.value !== "all" ? (
-              <span className={cn("text-xs font-medium tabular-nums", selected ? "text-canvas/55" : "text-fg-subtle")}>
+              <span className={cn("text-xs font-medium tabular-nums", selected ? "text-on-brand/60" : "text-fg-subtle")}>
                 {chip.count}
               </span>
             ) : null}

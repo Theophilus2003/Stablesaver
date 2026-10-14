@@ -70,7 +70,7 @@ export function SiteHeader() {
           </Button>
         </div>
       </div>
-      <div className="hairline-solana h-px w-full opacity-60" />
+      <div className="hairline-brand h-px w-full opacity-70" />
 
       <AnimatePresence>
         {open ? (

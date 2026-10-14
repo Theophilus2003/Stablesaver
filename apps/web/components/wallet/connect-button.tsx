@@ -21,7 +21,7 @@ export function ConnectButton({ className, size = "sm" }: { className?: string; 
     return (
       <Button
         size={size}
-        variant="secondary"
+        variant="tonal"
         className={className}
         onClick={() => setOpen(true)}
         disabled={mounted && connecting}

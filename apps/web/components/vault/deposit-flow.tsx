@@ -201,7 +201,7 @@ export function DepositFlow({
                           <span
                             className={cn(
                               "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border",
-                              selected ? "border-fg bg-fg text-canvas" : "border-line-strong",
+                              selected ? "border-brand bg-brand text-on-brand" : "border-line-strong",
                             )}
                           >
                             {selected ? <Check className="size-3" /> : null}
@@ -306,7 +306,7 @@ function StepIndicator({ step }: { step: Step }) {
       {([1, 2, 3] as Step[]).map((s) => (
         <li key={s} className="flex flex-1 flex-col gap-2">
           <div className="h-1 overflow-hidden rounded-full bg-surface-3">
-            <motion.div className="h-full bg-fg" initial={false} animate={{ width: s <= step ? "100%" : "0%" }} transition={{ duration: 0.3 }} />
+            <motion.div className="h-full bg-brand" initial={false} animate={{ width: s <= step ? "100%" : "0%" }} transition={{ duration: 0.3 }} />
           </div>
           <span className={cn("text-xs", s === step ? "text-fg" : "text-fg-subtle")} aria-current={s === step ? "step" : undefined}>
             {s}. {STEP_TITLES[s]}

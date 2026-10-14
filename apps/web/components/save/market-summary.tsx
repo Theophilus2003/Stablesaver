@@ -34,7 +34,7 @@ export function MarketSummaryStrip({
         <span className="text-[13px] text-fg-muted">
           Best {best ? `grade-${best.grade}` : "rated"} {asset} today
         </span>
-        <span className="text-[26px] font-semibold leading-tight tracking-[-0.03em] tabular-nums text-fg">
+        <span className="text-[26px] font-semibold leading-tight tracking-[-0.03em] tabular-nums text-brand">
           {best ? formatPercent(best.apy) : "—"}
         </span>
         <span className="text-xs text-fg-subtle">{best ? `on ${best.protocolName} · ${best.networkName}` : "No rated options right now"}</span>

@@ -84,7 +84,7 @@ export function AmountField({
                 className={cn(
                   "h-8 flex-1 rounded-full border text-[13px] font-medium tabular-nums transition-colors sm:flex-none sm:px-4",
                   active
-                    ? "border-line-strong bg-surface-3 text-fg"
+                    ? "border-brand/40 bg-brand/10 text-brand"
                     : "border-line text-fg-muted hover:border-line-strong hover:text-fg",
                 )}
               >

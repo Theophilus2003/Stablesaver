@@ -10,7 +10,8 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: "bg-fg text-canvas hover:bg-fg/90",
+        primary: "bg-brand text-on-brand shadow-[0_8px_24px_-10px_rgb(61_220_151/0.7)] hover:bg-brand/90",
+        tonal: "border border-brand/25 bg-brand/10 text-brand hover:border-brand/40 hover:bg-brand/15",
         secondary: "border border-line bg-surface-2 text-fg hover:border-line-strong hover:bg-surface-3",
         ghost: "text-fg-muted hover:bg-surface-2 hover:text-fg",
         outline: "border border-line-strong text-fg hover:bg-surface-2",

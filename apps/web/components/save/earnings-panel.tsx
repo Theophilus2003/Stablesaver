@@ -37,7 +37,7 @@ export function EarningsPanel({
   const empty = amount <= 0;
 
   return (
-    <Panel className="p-5 sm:p-6">
+    <Panel className="border-brand/20 bg-linear-to-b from-brand/[0.11] to-brand/[0.02] p-5 sm:p-6">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <span className="whitespace-nowrap text-[13px] text-fg-muted">You could earn in a year</span>

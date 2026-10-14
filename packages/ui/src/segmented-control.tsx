@@ -77,13 +77,13 @@ export function SegmentedControl<T extends string>({
             className={cn(
               "relative z-0 rounded-full font-medium outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-fg/40 disabled:opacity-40",
               size === "lg" ? "h-11 px-3 text-[14px] sm:text-[15px]" : "h-9 px-3 text-[13px]",
-              selected ? "text-canvas" : "text-fg-muted hover:text-fg",
+              selected ? "font-semibold text-on-brand" : "text-fg-muted hover:text-fg",
             )}
           >
             {selected ? (
               <motion.span
                 layoutId={`${id}-indicator`}
-                className="absolute inset-0 -z-10 rounded-full bg-fg shadow-[0_1px_2px_rgb(0_0_0/0.4)]"
+                className="absolute inset-0 -z-10 rounded-full bg-brand shadow-[0_6px_20px_-6px_rgb(61_220_151/0.65)]"
                 transition={{ type: "spring", stiffness: 520, damping: 40 }}
               />
             ) : null}
@@ -122,7 +122,7 @@ export function PillTabs<T extends string>({
             className={cn(
               "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-fg/40 disabled:cursor-not-allowed",
               selected
-                ? "border-line-strong bg-surface-3 text-fg"
+                ? "border-brand/30 bg-brand/10 text-brand"
                 : "border-transparent text-fg-muted hover:text-fg disabled:hover:text-fg-muted",
               option.disabled && "opacity-50",
             )}

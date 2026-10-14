@@ -4,11 +4,11 @@
 @source "../../../packages/ui/src";
 
 @theme {
-  /* Surfaces: near-black page, slightly lighter charcoal cards. */
-  --color-canvas: #09090a;
-  --color-surface: #111112;
-  --color-surface-2: #161618;
-  --color-surface-3: #1d1d20;
+  /* Surfaces: near-black with a slight green cast from the brand, slightly lighter cards. */
+  --color-canvas: #070a09;
+  --color-surface: #0e1311;
+  --color-surface-2: #131a17;
+  --color-surface-3: #1a221e;
   --color-line: rgb(255 255 255 / 0.07);
   --color-line-strong: rgb(255 255 255 / 0.13);
 
@@ -18,12 +18,12 @@
   --color-fg-subtle: #66666d;
 
   /* Signals: restrained, never neon. */
-  --color-positive: #5bd08f;
+  --color-positive: #3ddc97;
   --color-warning: #e2b55a;
   --color-danger: #ec7272;
   --color-info: #8fb3ff;
 
-  --color-grade-a: #5bd08f;
+  --color-grade-a: #3ddc97;
   --color-grade-b: #d7c65e;
   --color-grade-c: #e8955c;
   --color-grade-d: #ec7272;
@@ -31,6 +31,8 @@
   /* Brand: the logo's greens. Bright on dark grounds, deep on light ones. */
   --color-brand: #3ddc97;
   --color-brand-deep: #0e8a57;
+  --color-brand-soft: #9ff5cf;
+  --color-on-brand: #03140c;
 
   /* Solana accents, used sparingly. */
   --color-sol-purple: #9945ff;
@@ -47,6 +49,7 @@
   --animate-dialog-in: dialog-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
   --animate-dialog-out: dialog-out 160ms ease-in;
   --animate-rise: rise 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-glow: glow 9s ease-in-out infinite alternate;
 
   @keyframes fade-in {
     from { opacity: 0; }
@@ -84,6 +87,10 @@
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
   }
+  @keyframes glow {
+    from { opacity: 0.75; transform: translate3d(-3%, 0, 0) scale(1); }
+    to { opacity: 1; transform: translate3d(3%, 2%, 0) scale(1.06); }
+  }
 }
 
 @layer base {
@@ -98,12 +105,15 @@
 
   body {
     background-color: var(--color-canvas);
+    /* A green dawn along the top of every page. */
+    background-image: radial-gradient(90rem 36rem at 50% -16rem, rgb(61 220 151 / 0.14), transparent 70%);
+    background-repeat: no-repeat;
     color: var(--color-fg);
     font-feature-settings: "ss01", "cv11";
   }
 
   ::selection {
-    background: rgb(91 208 143 / 0.25);
+    background: rgb(61 220 151 / 0.28);
   }
 
   /* Numbers line up everywhere. */
@@ -125,6 +135,17 @@
       transition-duration: 1ms !important;
     }
   }
+}
+
+@utility hairline-brand {
+  background-image: linear-gradient(90deg, transparent, rgb(61 220 151 / 0.55), transparent);
+}
+
+@utility text-brand-gradient {
+  background-image: linear-gradient(100deg, var(--color-brand) 10%, var(--color-brand-soft) 90%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
 }
 
 @utility hairline-solana {

@@ -96,7 +96,7 @@ export function SaveExperience({ snapshot, initial }: { snapshot: MarketSnapshot
     <>
       <section className="mx-auto max-w-[600px] px-4 pt-12 sm:px-6 sm:pt-20">
         <div className="flex justify-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-fg-muted">
+          <span className="inline-flex items-center gap-2 rounded-full border border-brand/20 bg-brand/[0.06] px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-fg-muted backdrop-blur-sm">
             <StatusDot tone={unavailable ? "danger" : demo ? "warning" : "positive"} pulse={!demo && !unavailable} />
             {unavailable ? "Rates unavailable" : demo ? "Demo rates" : "Live rates"} · No wallet or sign-up
           </span>
@@ -104,13 +104,13 @@ export function SaveExperience({ snapshot, initial }: { snapshot: MarketSnapshot
         <h1 className="mt-6 text-center text-[44px] font-semibold leading-[1.02] tracking-[-0.045em] text-balance sm:text-[64px]">
           How much do you
           <br />
-          want to grow?
+          want to <span className="text-brand-gradient">grow?</span>
         </h1>
         <p className="mx-auto mt-4 max-w-[460px] text-center text-[15px] leading-relaxed text-fg-muted sm:text-base">
           See what your stablecoins could earn. Compare yield and risk.
         </p>
 
-        <Card className="mt-10 p-1.5 shadow-[0_24px_80px_-32px_rgb(0_0_0/0.8)] sm:p-2">
+        <Card className="mt-10 border-brand/15 p-1.5 shadow-[0_40px_120px_-48px_rgb(61_220_151/0.45),0_24px_80px_-32px_rgb(0_0_0/0.8)] sm:p-2">
           <div className="px-4 pb-5 pt-4 sm:px-5 sm:pt-5">
             <AmountField
               value={amountText}
@@ -149,7 +149,7 @@ export function SaveExperience({ snapshot, initial }: { snapshot: MarketSnapshot
         <div className="mt-8 flex justify-center">
           <a
             href="#options"
-            className="group inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-fg-muted transition-colors hover:text-fg"
+            className="group inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-brand/90 transition-colors hover:text-brand"
           >
             See all options that fit you
             <ArrowDown className="size-4 transition-transform group-hover:translate-y-0.5" />
