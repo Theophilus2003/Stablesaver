@@ -21,6 +21,7 @@ import { AmountField } from "./amount-field";
 import { EarningsPanel } from "./earnings-panel";
 import { MarketSummaryStrip } from "./market-summary";
 import { RiskSelector } from "./risk-selector";
+import { ShareEstimate } from "./share-estimate";
 import { VaultAlternative } from "./vault-alternative";
 
 export interface SaveInitialState {
@@ -156,7 +157,8 @@ export function SaveExperience({
           className="mt-10"
         />
 
-        <div className="mt-8 flex justify-center">
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
+          {!unavailable ? <ShareEstimate /> : null}
           <a
             href="#options"
             className="group inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-brand/90 transition-colors hover:text-brand"

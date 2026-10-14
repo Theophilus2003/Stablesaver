@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
     "@stablesave/ui",
   ],
   poweredByHeader: false,
+  // The share-card route reads its fonts from disk.
+  outputFileTracingIncludes: { "/api/og": ["./assets/fonts/**/*"] },
   // Don't let `next dev` write agent rule files into the app folder.
   agentRules: false,
 };
