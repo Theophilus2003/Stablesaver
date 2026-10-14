@@ -14,9 +14,10 @@ DefiLlama tracks: Ethereum, Solana, Arbitrum, Base, BSC, Avalanche, Plasma and m
 protocol, or use the StableSave Vault, which splits one deposit across Solana protocols.
 
 > **Status:** market data is **live from DefiLlama** by default (rates, deposits, liquidity, rate stability and
-> protocol metadata for every USDC/USDT pool on every network), with labelled demo fixtures available offline. The vault program is written and tested on the
-> host but **not deployed**, so the vault UI runs as a labelled **simulated preview** until you configure a deployed
-> program. Nothing here is financial advice.
+> protocol metadata for every USDC/USDT pool on every network), with labelled demo fixtures available offline. The vault
+> program runs on **devnet** with test tokens: it splits deposits into **practice pools** (one per protocol, fixed
+> practice rates) and keeps 20% liquid for withdrawals. Without a configured program, the vault UI runs as a labelled
+> **simulated preview**. Nothing here is financial advice.
 
 ## Quick start
 
@@ -55,7 +56,8 @@ Keep "Include files outside of the root directory in the Build Step" enabled; bo
 
 The vault runs as a simulated preview until its program is deployed. To test it with a real (worthless) devnet
 token, add a `DEVNET_DEPLOYER_KEY` secret and run the **Vault program** workflow in GitHub Actions: it builds and
-tests the program, deploys it to devnet, creates a test token, sends some to your wallet and opens the vaults. Then
+tests the program, deploys it to devnet, creates a test token, sends some to your wallet and opens the vaults and
+their practice pools. Then
 set the three `NEXT_PUBLIC_*` values it prints in Vercel. Step by step: [docs/devnet-testing.md](docs/devnet-testing.md).
 
 ## Demo data, devnet and mainnet
@@ -67,6 +69,8 @@ Three separate things, each visible in the UI:
 | Market data source | `STABLESAVE_DATA_MODE` = `live` \| `demo` | `live` (DefiLlama) | **Live data** / **Demo data** badge, "Live rates" / "Demo rates" eyebrow, per-option source note and DefiLlama link |
 | Solana cluster | `NEXT_PUBLIC_SOLANA_CLUSTER` = `devnet` \| `mainnet-beta` \| `localnet` | `devnet` | **Devnet** / **Mainnet** badge on vault pages |
 | Vault deployment | `NEXT_PUBLIC_STABLESAVE_VAULT_PROGRAM_ID` + `NEXT_PUBLIC_STABLESAVE_VAULT_MINT` | unset | **Preview** + "Simulated" banners until both are set |
+| Wallet scan RPC (optional) | `SOLANA_MAINNET_RPC_URL` | public mainnet RPC | "Find idle money" reads balances through it; set your own for reliability |
+| Site URL (optional) | `NEXT_PUBLIC_SITE_URL` | Vercel's production URL | Absolute links in share-card previews |
 
 `live` mode never falls back to demo numbers: if DefiLlama can't be reached, the data source reports as unavailable
 and the UI says so. Risk inputs DefiLlama doesn't provide (bug bounties, upgrade controls, incident history,
@@ -106,6 +110,18 @@ presentation/               Demo day deck (PPTX + PDF), its assets, and the scri
 
 Everything is computed from the data layer: nothing in the UI is a hard-coded rate or earnings figure.
 
+Also on the site:
+
+- **Find idle money**: connect a wallet or paste any Solana address; it reads the USDC and USDT held on mainnet
+  (read-only) and fills the calculator with it.
+- **Can I withdraw today?**: for each option, compares your amount with what's free in the pool right now and any
+  waiting period.
+- **US Treasury bills for comparison**: the latest average T-bill rate from the US Treasury's FiscalData API, next to
+  the options.
+- **Share my estimate**: the link previews as a card with your estimate (`/api/og`).
+- **Deposit Blink**: `/api/actions/deposit` is a Solana Action, so the vault deposit works from a link or QR code
+  (the Vault page links to it on dial.to).
+
 ## Docs
 
 - [Architecture](docs/architecture.md): packages, data flow, adapter interface, going live
@@ -122,8 +138,9 @@ Everything is computed from the data layer: nothing in the UI is a hard-coded ra
 - Risk inputs beyond DefiLlama's data (bug bounties, upgrade authority, incident history, concentration) aren't
   sourced yet; they show as "not verified". Network fees are per-chain estimates, not live gas prices.
 - Protocol websites for non-vault protocols come from DefiLlama's listing, not a StableSave-curated list.
-- Vault allocation: the program stores and validates strategy weights, but funds stay in the vault reserve. The
-  allocator that deploys into Kamino / MarginFi / Drift / Save via CPI is the next milestone.
+- Vault allocation goes into **practice pools** on devnet: real test tokens, moved by an on-chain, permissionless
+  rebalance, earning fixed practice rates paid from a sponsor pot. CPI into Kamino / MarginFi / Drift / Save is the
+  next milestone.
 - The vault program is unaudited. The SBF build and LiteSVM tests run in GitHub Actions (`Vault program`
   workflow), or locally with the Solana toolchain.
 - Direct deposits link out to the official apps; adapters don't build protocol transactions yet.

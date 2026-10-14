@@ -70,15 +70,27 @@ The vault pages switch from **Preview** to real devnet transactions, with a **De
 3. Confirm in your wallet. The dashboard shows your balance from the chain.
 4. **Withdraw** up to $2,000 per 24 hours instantly; anything above that waits 30 minutes (the large-withdrawal
    timelock), then you complete it from the dashboard.
+5. On the dashboard, **Where the vault's money is** shows the whole vault from the chain: 20% kept liquid and the
+   rest in a practice pool per protocol. **Collect interest & rebalance** pays the pools their interest and moves
+   them back to their targets; anyone can press it.
+6. On the Vault page, **Open Blink** opens the deposit as a Solana Blink on dial.to. Anyone with test tokens can
+   deposit from that link or a QR code of it.
 
 ## What's real and what isn't
 
-- **Real on devnet:** deposits, shares, withdrawals, per-wallet and vault-wide limits, the timelock, and the
-  guardian pause.
-- **Not yet:** deposits stay in the vault's reserve. The allocator that moves them into Kamino, MarginFi, Drift and
-  Save isn't built, so nothing earns yield on devnet. The APY on the page is an estimate from live market data,
-  and "earned" stays at zero.
+- **Real on devnet:** deposits, shares, withdrawals, per-wallet and vault-wide limits, the timelock, the guardian
+  pause, and the split into practice pools. Every deposit is rebalanced in the same transaction; withdrawals pull
+  back from the pools when the reserve is short.
+- **Practice, not market:** the pools stand in for Kamino, MarginFi, Drift and Save. They hold real test tokens and
+  pay fixed practice rates (5.20%, 5.90%, 6.80%, 5.05%) from each vault's yield sponsor, which setup tops up with
+  5,000 test tokens. CPI into the real protocols is the next milestone.
 - The allocations are the example weights from `packages/client/scripts/initialize-vaults.ts`.
+
+## Already deployed before practice pools?
+
+Run the **Vault program** workflow again. It upgrades the program in place (same program id, so Vercel needs no
+changes), keeps your vaults and positions, opens the practice pools and funds their sponsor. Existing deposits move
+into the pools on the next deposit or **Collect interest & rebalance**.
 
 ## Without GitHub Actions
 
