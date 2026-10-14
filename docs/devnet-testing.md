@@ -48,7 +48,11 @@ deposit and a withdrawal), then deploys to devnet. It takes about 10 minutes. Th
 for the next step.
 
 Run it again any time: it upgrades the same program (the program id is derived from your deployer key), keeps
-existing vaults, and sends more test tokens if you fill in a wallet.
+existing vaults and pools, and sends more test tokens if you fill in a wallet.
+
+The public devnet RPC limits how fast one machine can send requests. The setup waits and retries when it answers
+`429 Too Many Requests`; if a run still stops on it, run the workflow again and it carries on from where it stopped.
+To avoid the limit, set the `DEVNET_RPC_URL` variable to your own devnet RPC (see step 3).
 
 ## 5. Point the website at it
 

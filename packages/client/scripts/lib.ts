@@ -3,21 +3,25 @@ import { createHash } from "node:crypto";
 import {
   appendTransactionMessageInstructions,
   createKeyPairSignerFromBytes,
+  createDefaultRpcTransport,
   createKeyPairSignerFromPrivateKeyBytes,
-  createSolanaRpc,
+  createSolanaRpcFromTransport,
   createSolanaRpcSubscriptions,
   createTransactionMessage,
   getAddressEncoder,
   getBase58Encoder,
   getSignatureFromTransaction,
+  isSolanaError,
   pipe,
   sendAndConfirmTransactionFactory,
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
   signTransactionMessageWithSigners,
+  SOLANA_ERROR__RPC__TRANSPORT_HTTP_ERROR,
   type Instruction,
   type KeyPairSigner,
   type Rpc,
+  type RpcTransport,
   type SolanaRpcApi,
 } from "@solana/kit";
 
@@ -34,8 +38,36 @@ export function websocketUrl(rpcUrl: string): string {
   return url.toString();
 }
 
+/** Waits before each retry. Public devnet answers 429 when a script sends requests in quick succession. */
+const RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 15_000, 30_000];
+const RETRYABLE_STATUS = new Set([429, 502, 503, 504]);
+
+/**
+ * Retries a request the RPC turned away (rate limit or a brief outage), honouring
+ * Retry-After. Safe for sendTransaction too: resending the same signed
+ * transaction can't make it land twice.
+ */
+export function withRetries(transport: RpcTransport, delays: readonly number[] = RETRY_DELAYS_MS): RpcTransport {
+  return (async (config: Parameters<RpcTransport>[0]) => {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await transport(config);
+      } catch (error) {
+        const delay = delays[attempt];
+        if (delay === undefined || !isSolanaError(error, SOLANA_ERROR__RPC__TRANSPORT_HTTP_ERROR)) throw error;
+        const { statusCode, headers } = error.context;
+        if (!RETRYABLE_STATUS.has(statusCode)) throw error;
+        const retryAfter = Number(headers?.get("retry-after")) * 1_000;
+        const wait = retryAfter > 0 ? Math.min(retryAfter, 60_000) : delay;
+        console.warn(`RPC busy (HTTP ${statusCode}), retrying in ${wait / 1_000}s`);
+        await new Promise((resolve) => setTimeout(resolve, wait));
+      }
+    }
+  }) as RpcTransport;
+}
+
 export function connect(rpcUrl: string): Connection {
-  const rpc = createSolanaRpc(rpcUrl);
+  const rpc = createSolanaRpcFromTransport(withRetries(createDefaultRpcTransport({ url: rpcUrl })));
   const rpcSubscriptions = createSolanaRpcSubscriptions(websocketUrl(rpcUrl));
   return { rpc, sendAndConfirm: sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions }) };
 }
