@@ -64,6 +64,10 @@ export const STABLESAVE_VAULT_ERROR__INVALID_TOKEN_ACCOUNT = 0x1786; // 6022
 export const STABLESAVE_VAULT_ERROR__MATH_OVERFLOW = 0x1787; // 6023
 /** NotPendingAuthority: Signer is not the pending authority */
 export const STABLESAVE_VAULT_ERROR__NOT_PENDING_AUTHORITY = 0x1788; // 6024
+/** InvalidPoolAccount: Practice pool or its token account doesn't belong to this vault */
+export const STABLESAVE_VAULT_ERROR__INVALID_POOL_ACCOUNT = 0x1789; // 6025
+/** InvalidPracticeRate: Practice rate must be at most 3,000 basis points (30% a year) */
+export const STABLESAVE_VAULT_ERROR__INVALID_PRACTICE_RATE = 0x178a; // 6026
 
 export type StablesaveVaultError =
   | typeof STABLESAVE_VAULT_ERROR__ALLOCATIONS_MUST_SUM_TO_ONE_HUNDRED_PERCENT
@@ -75,6 +79,8 @@ export type StablesaveVaultError =
   | typeof STABLESAVE_VAULT_ERROR__INVALID_ALLOCATION_COUNT
   | typeof STABLESAVE_VAULT_ERROR__INVALID_ALLOCATION_WEIGHT
   | typeof STABLESAVE_VAULT_ERROR__INVALID_LIMITS
+  | typeof STABLESAVE_VAULT_ERROR__INVALID_POOL_ACCOUNT
+  | typeof STABLESAVE_VAULT_ERROR__INVALID_PRACTICE_RATE
   | typeof STABLESAVE_VAULT_ERROR__INVALID_RISK_PROFILE
   | typeof STABLESAVE_VAULT_ERROR__INVALID_TOKEN_ACCOUNT
   | typeof STABLESAVE_VAULT_ERROR__LARGE_WITHDRAWAL_REQUIRES_TIMELOCK
@@ -105,6 +111,8 @@ if (process.env["NODE_ENV"] !== "production") {
     [STABLESAVE_VAULT_ERROR__INVALID_ALLOCATION_COUNT]: `A strategy needs between 1 and 8 allocations`,
     [STABLESAVE_VAULT_ERROR__INVALID_ALLOCATION_WEIGHT]: `Each allocation weight must be greater than zero`,
     [STABLESAVE_VAULT_ERROR__INVALID_LIMITS]: `Vault limits are outside the allowed bounds`,
+    [STABLESAVE_VAULT_ERROR__INVALID_POOL_ACCOUNT]: `Practice pool or its token account doesn't belong to this vault`,
+    [STABLESAVE_VAULT_ERROR__INVALID_PRACTICE_RATE]: `Practice rate must be at most 3,000 basis points (30% a year)`,
     [STABLESAVE_VAULT_ERROR__INVALID_RISK_PROFILE]: `Risk profile must be 0 (safe), 1 (balanced) or 2 (bigger)`,
     [STABLESAVE_VAULT_ERROR__INVALID_TOKEN_ACCOUNT]: `Token account does not match the vault`,
     [STABLESAVE_VAULT_ERROR__LARGE_WITHDRAWAL_REQUIRES_TIMELOCK]: `This withdrawal is above your instant limit; request a timelocked withdrawal instead`,

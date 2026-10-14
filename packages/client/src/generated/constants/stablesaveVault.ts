@@ -8,7 +8,19 @@
 
 import type { ReadonlyUint8Array } from "@solana/kit";
 
+export const LIQUIDITY_BUFFER_BPS: number = 2000;
+
 export const MAX_ALLOCATIONS: number = 8;
+
+export const MAX_PRACTICE_APY_BPS: number = 3000;
+
+export const POOL_SEED: ReadonlyUint8Array = new Uint8Array([
+  112, 111, 111, 108,
+]);
+
+export const POOL_TOKENS_SEED: ReadonlyUint8Array = new Uint8Array([
+  112, 111, 111, 108, 95, 116, 111, 107, 101, 110, 115,
+]);
 
 export const POSITION_SEED: ReadonlyUint8Array = new Uint8Array([
   112, 111, 115, 105, 116, 105, 111, 110,
@@ -20,4 +32,8 @@ export const RESERVE_SEED: ReadonlyUint8Array = new Uint8Array([
 
 export const VAULT_SEED: ReadonlyUint8Array = new Uint8Array([
   118, 97, 117, 108, 116,
+]);
+
+export const YIELD_SPONSOR_SEED: ReadonlyUint8Array = new Uint8Array([
+  121, 105, 101, 108, 100, 95, 115, 112, 111, 110, 115, 111, 114,
 ]);

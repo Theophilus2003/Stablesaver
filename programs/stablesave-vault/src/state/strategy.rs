@@ -12,6 +12,13 @@ pub enum Protocol {
     Save,
 }
 
+impl Protocol {
+    /// Seed byte for per-protocol accounts (practice pools).
+    pub fn index(&self) -> u8 {
+        *self as u8
+    }
+}
+
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, PartialEq, Eq, InitSpace)]
 pub struct Allocation {
     pub protocol: Protocol,
@@ -19,9 +26,9 @@ pub struct Allocation {
     pub weight_bps: u16,
 }
 
-/// Target allocation for the vault. In this version funds stay in the vault
-/// reserve; an allocator that deploys to protocols via CPI will read this
-/// configuration (and the `StrategyUpdated` events) in a later release.
+/// Target allocation for the vault. `rebalance` moves funds between the reserve
+/// and each protocol's practice pool toward these weights; CPI into the real
+/// protocols will read the same configuration in a later release.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq, Eq, InitSpace)]
 pub struct StrategyConfig {
     /// Incremented on every update so clients can detect changes.

@@ -9,6 +9,7 @@ import {
   type Vault,
 } from "./generated";
 import { assetsForShares, sharesForAssets, sharesForDeposit, withSlippage } from "./math";
+import { poolLiquidity, withPoolAccounts, type PracticePoolRef } from "./pools";
 import { instantWithdrawalAllowance, vaultTotalAssets } from "./position";
 
 /**
@@ -30,6 +31,8 @@ export interface VaultContext {
   /** Current reserve token balance (base units). */
   reserveAmount: bigint;
   programAddress?: Address;
+  /** The vault's practice pools. Withdrawals pull from them when the reserve is short. */
+  pools?: readonly PracticePoolRef[];
 }
 
 export interface DepositParams extends VaultContext {
@@ -92,7 +95,8 @@ export async function buildWithdrawPlan(params: WithdrawParams): Promise<Withdra
 
   const balance = assetsForShares(position.shares, total, vault.totalShares);
   const requested = amount > balance ? balance : amount;
-  const { available } = instantWithdrawalAllowance(vault, position, reserveAmount, nowSeconds);
+  const pools = params.pools ?? [];
+  const { available } = instantWithdrawalAllowance(vault, position, reserveAmount, nowSeconds, poolLiquidity(pools));
   const instant = requested < available ? requested : available;
 
   const instructions: Instruction[] = [];
@@ -102,17 +106,20 @@ export async function buildWithdrawPlan(params: WithdrawParams): Promise<Withdra
     const shares = sharesForAssets(instant, total, vault.totalShares, sharesLeft);
     const expected = assetsForShares(shares, total, vault.totalShares);
     instructions.push(
-      await getWithdrawInstructionAsync(
-        {
-          owner,
-          vault: vaultAddress,
-          mint: vault.mint,
-          ownerToken: params.ownerToken,
-          reserve: vault.reserve,
-          shares,
-          minAssetsOut: withSlippage(expected, slippageBps),
-        },
-        config,
+      withPoolAccounts(
+        await getWithdrawInstructionAsync(
+          {
+            owner,
+            vault: vaultAddress,
+            mint: vault.mint,
+            ownerToken: params.ownerToken,
+            reserve: vault.reserve,
+            shares,
+            minAssetsOut: withSlippage(expected, slippageBps),
+          },
+          config,
+        ),
+        pools,
       ),
     );
     sharesLeft -= shares;
@@ -136,7 +143,7 @@ export async function buildExecuteWithdrawalInstruction(
 ): Promise<Instruction> {
   const { vault, position, reserveAmount, slippageBps = 10 } = params;
   const expected = assetsForShares(position.pendingShares, vaultTotalAssets(vault, reserveAmount), vault.totalShares);
-  return getExecuteWithdrawalInstructionAsync(
+  const instruction = await getExecuteWithdrawalInstructionAsync(
     {
       owner: asSigner(params.owner),
       vault: params.vaultAddress,
@@ -147,6 +154,7 @@ export async function buildExecuteWithdrawalInstruction(
     },
     params.programAddress ? { programAddress: params.programAddress } : undefined,
   );
+  return withPoolAccounts(instruction, params.pools ?? []);
 }
 
 export async function buildCancelWithdrawalInstruction(

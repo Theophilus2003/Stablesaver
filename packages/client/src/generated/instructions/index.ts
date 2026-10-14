@@ -7,11 +7,14 @@
  */
 
 export * from "./acceptAuthority";
+export * from "./accruePracticeYield";
 export * from "./cancelWithdrawal";
 export * from "./deposit";
 export * from "./executeWithdrawal";
 export * from "./initializeVault";
+export * from "./openPracticePool";
 export * from "./pause";
+export * from "./rebalance";
 export * from "./requestWithdrawal";
 export * from "./setGuardian";
 export * from "./transferAuthority";

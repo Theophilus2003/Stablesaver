@@ -44,6 +44,8 @@ export function instantWithdrawalAllowance(
   position: UserPosition,
   reserveAmount: bigint,
   nowSeconds: bigint,
+  /** Assets in practice pools passed to the withdrawal, which it can pull from. */
+  poolLiquidity = 0n,
 ): InstantAllowance {
   const window = vault.limits.windowSeconds;
   // Mirrors `roll_window` in the program.
@@ -54,7 +56,7 @@ export function instantWithdrawalAllowance(
   const candidates: Array<[bigint, InstantAllowance["limitedBy"]]> = [
     [clamp(vault.limits.largeWithdrawalThreshold - userUsed), "position"],
     [clamp(vault.limits.vaultInstantOutflowCap - vaultUsed), "vault"],
-    [reserveAmount, "liquidity"],
+    [reserveAmount + poolLiquidity, "liquidity"],
     [assetsForShares(position.shares, total, vault.totalShares), "balance"],
   ];
   const [available, limitedBy] = candidates.reduce((min, c) => (c[0] < min[0] ? c : min));

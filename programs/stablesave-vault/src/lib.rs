@@ -14,6 +14,9 @@
 //! - Emergency pause (authority or guardian); only the authority can unpause.
 //! - Strategy weights validated on-chain (≤ 8 protocols, unique, sum to 100%).
 //! - Two-step authority transfer.
+//! - Practice pools: `rebalance` (permissionless) moves funds toward the
+//!   strategy weights, always keeping a liquidity buffer in the reserve;
+//!   withdrawals pull any shortfall back from the pools.
 
 pub mod constants;
 pub mod error;
@@ -49,7 +52,9 @@ pub mod stablesave_vault {
     }
 
     /// Instant withdrawal within the position's and vault's window limits.
-    pub fn withdraw(ctx: Context<Withdraw>, shares: u64, min_assets_out: u64) -> Result<()> {
+    /// Pass (pool, pool tokens) pairs as remaining accounts to let it pull
+    /// from practice pools when the reserve is short.
+    pub fn withdraw<'info>(ctx: Context<'info, Withdraw<'info>>, shares: u64, min_assets_out: u64) -> Result<()> {
         instructions::withdraw::handle_withdraw(ctx, shares, min_assets_out)
     }
 
@@ -59,13 +64,28 @@ pub mod stablesave_vault {
     }
 
     /// Pay out a pending request after its timelock.
-    pub fn execute_withdrawal(ctx: Context<Withdraw>, min_assets_out: u64) -> Result<()> {
+    pub fn execute_withdrawal<'info>(ctx: Context<'info, Withdraw<'info>>, min_assets_out: u64) -> Result<()> {
         instructions::withdraw::handle_execute_withdrawal(ctx, min_assets_out)
     }
 
     /// Return pending shares to the position.
     pub fn cancel_withdrawal(ctx: Context<ManageWithdrawalRequest>) -> Result<()> {
         instructions::request_withdrawal::handle_cancel_withdrawal(ctx)
+    }
+
+    /// Authority-only: open the practice pool for `protocol` at a fixed rate (≤ 30% a year).
+    pub fn open_practice_pool(ctx: Context<OpenPracticePool>, protocol: Protocol, apy_bps: u16) -> Result<()> {
+        instructions::practice_pools::handle_open_practice_pool(ctx, protocol, apy_bps)
+    }
+
+    /// Permissionless: move one practice pool toward its strategy weight.
+    pub fn rebalance(ctx: Context<Rebalance>) -> Result<()> {
+        instructions::practice_pools::handle_rebalance(ctx)
+    }
+
+    /// Permissionless: pay a practice pool its interest from the yield sponsor.
+    pub fn accrue_practice_yield(ctx: Context<AccruePracticeYield>) -> Result<()> {
+        instructions::practice_pools::handle_accrue_practice_yield(ctx)
     }
 
     pub fn update_strategy(ctx: Context<AdminUpdate>, allocations: Vec<Allocation>) -> Result<()> {

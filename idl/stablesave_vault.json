@@ -32,6 +32,83 @@
       "args": []
     },
     {
+      "name": "accrue_practice_yield",
+      "docs": [
+        "Permissionless: pay a practice pool its interest from the yield sponsor."
+      ],
+      "discriminator": [
+        7,
+        141,
+        120,
+        57,
+        26,
+        83,
+        158,
+        162
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "relations": [
+            "pool"
+          ]
+        },
+        {
+          "name": "pool",
+          "writable": true
+        },
+        {
+          "name": "tokens",
+          "writable": true,
+          "relations": [
+            "pool"
+          ]
+        },
+        {
+          "name": "yield_sponsor",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  121,
+                  105,
+                  101,
+                  108,
+                  100,
+                  95,
+                  115,
+                  112,
+                  111,
+                  110,
+                  115,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "cancel_withdrawal",
       "docs": [
         "Return pending shares to the position."
@@ -366,6 +443,128 @@
       ]
     },
     {
+      "name": "open_practice_pool",
+      "docs": [
+        "Authority-only: open the practice pool for `protocol` at a fixed rate (≤ 30% a year)."
+      ],
+      "discriminator": [
+        54,
+        10,
+        175,
+        96,
+        197,
+        183,
+        238,
+        139
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault"
+        },
+        {
+          "name": "pool",
+          "writable": true
+        },
+        {
+          "name": "tokens",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "yield_sponsor",
+          "docs": [
+            "Pays the practice interest. Anyone can top it up with a normal transfer."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  121,
+                  105,
+                  101,
+                  108,
+                  100,
+                  95,
+                  115,
+                  112,
+                  111,
+                  110,
+                  115,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "protocol",
+          "type": {
+            "defined": {
+              "name": "Protocol"
+            }
+          }
+        },
+        {
+          "name": "apy_bps",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "pause",
       "discriminator": [
         211,
@@ -385,6 +584,60 @@
         {
           "name": "vault",
           "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "rebalance",
+      "docs": [
+        "Permissionless: move one practice pool toward its strategy weight."
+      ],
+      "discriminator": [
+        108,
+        158,
+        77,
+        9,
+        210,
+        52,
+        88,
+        62
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "relations": [
+            "pool"
+          ]
+        },
+        {
+          "name": "pool",
+          "writable": true
+        },
+        {
+          "name": "tokens",
+          "writable": true,
+          "relations": [
+            "pool"
+          ]
+        },
+        {
+          "name": "reserve",
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "mint",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         }
       ],
       "args": []
@@ -630,7 +883,9 @@
     {
       "name": "withdraw",
       "docs": [
-        "Instant withdrawal within the position's and vault's window limits."
+        "Instant withdrawal within the position's and vault's window limits.",
+        "Pass (pool, pool tokens) pairs as remaining accounts to let it pull",
+        "from practice pools when the reserve is short."
       ],
       "discriminator": [
         183,
@@ -721,6 +976,19 @@
     }
   ],
   "accounts": [
+    {
+      "name": "PracticePool",
+      "discriminator": [
+        26,
+        83,
+        116,
+        57,
+        3,
+        162,
+        28,
+        11
+      ]
+    },
     {
       "name": "UserPosition",
       "discriminator": [
@@ -825,6 +1093,58 @@
         209,
         178,
         218
+      ]
+    },
+    {
+      "name": "PoolLiquidityPulled",
+      "discriminator": [
+        39,
+        85,
+        81,
+        143,
+        72,
+        177,
+        191,
+        117
+      ]
+    },
+    {
+      "name": "PracticePoolOpened",
+      "discriminator": [
+        17,
+        130,
+        104,
+        132,
+        221,
+        140,
+        113,
+        120
+      ]
+    },
+    {
+      "name": "PracticeYieldAccrued",
+      "discriminator": [
+        189,
+        119,
+        218,
+        215,
+        108,
+        165,
+        32,
+        32
+      ]
+    },
+    {
+      "name": "Rebalanced",
+      "discriminator": [
+        74,
+        101,
+        57,
+        244,
+        181,
+        179,
+        52,
+        182
       ]
     },
     {
@@ -1031,6 +1351,16 @@
       "code": 6024,
       "name": "NotPendingAuthority",
       "msg": "Signer is not the pending authority"
+    },
+    {
+      "code": 6025,
+      "name": "InvalidPoolAccount",
+      "msg": "Practice pool or its token account doesn't belong to this vault"
+    },
+    {
+      "code": 6026,
+      "name": "InvalidPracticeRate",
+      "msg": "Practice rate must be at most 3,000 basis points (30% a year)"
     }
   ],
   "types": [
@@ -1208,6 +1538,163 @@
       }
     },
     {
+      "name": "PoolLiquidityPulled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "protocol",
+            "type": {
+              "defined": {
+                "name": "Protocol"
+              }
+            }
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PracticePool",
+      "docs": [
+        "A practice lending pool for one protocol in one vault: the vault moves part",
+        "of its reserve here according to the strategy weights, and the pool pays a",
+        "fixed practice rate funded from the vault's yield-sponsor account. It stands",
+        "in for a real protocol (Kamino, MarginFi, …) until CPI integrations ship, and",
+        "keeps the accounting honest: every unit counted is a real token held here.",
+        "",
+        "PDA: [\"pool\", vault, protocol index]"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "version",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "tokens_bump",
+            "type": "u8"
+          },
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "protocol",
+            "type": {
+              "defined": {
+                "name": "Protocol"
+              }
+            }
+          },
+          {
+            "name": "tokens",
+            "docs": [
+              "Token account holding this pool's funds. PDA: [\"pool_tokens\", pool]; authority = vault."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "apy_bps",
+            "docs": [
+              "Fixed practice rate, basis points a year."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "deployed",
+            "docs": [
+              "Vault assets in this pool: principal moved in plus interest paid in."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "interest_paid",
+            "docs": [
+              "Interest paid into the pool so far."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "last_accrual_ts",
+            "type": "i64"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PracticePoolOpened",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "protocol",
+            "type": {
+              "defined": {
+                "name": "Protocol"
+              }
+            }
+          },
+          {
+            "name": "apy_bps",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PracticeYieldAccrued",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "protocol",
+            "type": {
+              "defined": {
+                "name": "Protocol"
+              }
+            }
+          },
+          {
+            "name": "interest",
+            "type": "u64"
+          },
+          {
+            "name": "pool_deployed",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
       "name": "Protocol",
       "docs": [
         "Protocols a strategy can allocate to. Mirrors `ONCHAIN_PROTOCOL_IDS` in",
@@ -1232,11 +1719,53 @@
       }
     },
     {
+      "name": "Rebalanced",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "protocol",
+            "type": {
+              "defined": {
+                "name": "Protocol"
+              }
+            }
+          },
+          {
+            "name": "to_pool",
+            "docs": [
+              "Moved from the reserve into the pool."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "to_reserve",
+            "docs": [
+              "Moved from the pool back to the reserve."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "pool_deployed",
+            "type": "u64"
+          },
+          {
+            "name": "reserve_after",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
       "name": "StrategyConfig",
       "docs": [
-        "Target allocation for the vault. In this version funds stay in the vault",
-        "reserve; an allocator that deploys to protocols via CPI will read this",
-        "configuration (and the `StrategyUpdated` events) in a later release."
+        "Target allocation for the vault. `rebalance` moves funds between the reserve",
+        "and each protocol's practice pool toward these weights; CPI into the real",
+        "protocols will read the same configuration in a later release."
       ],
       "type": {
         "kind": "struct",
@@ -1451,7 +1980,7 @@
           {
             "name": "deployed_assets",
             "docs": [
-              "Assets deployed to external protocols. Always 0 until the allocator ships."
+              "Assets the vault has moved out of the reserve into practice pools."
             ],
             "type": "u64"
           },
@@ -1685,12 +2214,39 @@
   ],
   "constants": [
     {
+      "name": "LIQUIDITY_BUFFER_BPS",
+      "docs": [
+        "Share of vault assets `rebalance` always leaves in the reserve, so most",
+        "withdrawals are paid straight from it."
+      ],
+      "type": "u16",
+      "value": "2000"
+    },
+    {
       "name": "MAX_ALLOCATIONS",
       "docs": [
         "Maximum number of protocol allocations in a strategy."
       ],
       "type": "u8",
       "value": "8"
+    },
+    {
+      "name": "MAX_PRACTICE_APY_BPS",
+      "docs": [
+        "Highest fixed rate a practice pool may pay (30% a year)."
+      ],
+      "type": "u16",
+      "value": "3000"
+    },
+    {
+      "name": "POOL_SEED",
+      "type": "bytes",
+      "value": "[112, 111, 111, 108]"
+    },
+    {
+      "name": "POOL_TOKENS_SEED",
+      "type": "bytes",
+      "value": "[112, 111, 111, 108, 95, 116, 111, 107, 101, 110, 115]"
     },
     {
       "name": "POSITION_SEED",
@@ -1706,6 +2262,11 @@
       "name": "VAULT_SEED",
       "type": "bytes",
       "value": "[118, 97, 117, 108, 116]"
+    },
+    {
+      "name": "YIELD_SPONSOR_SEED",
+      "type": "bytes",
+      "value": "[121, 105, 101, 108, 100, 95, 115, 112, 111, 110, 115, 111, 114]"
     }
   ]
 }

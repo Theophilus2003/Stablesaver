@@ -1,4 +1,4 @@
-use crate::state::{Allocation, VaultLimits};
+use crate::state::{Allocation, Protocol, VaultLimits};
 use anchor_lang::prelude::*;
 
 #[event]
@@ -89,4 +89,39 @@ pub struct AuthorityTransferStarted {
 pub struct AuthorityTransferred {
     pub vault: Pubkey,
     pub authority: Pubkey,
+}
+
+#[event]
+pub struct PracticePoolOpened {
+    pub vault: Pubkey,
+    pub pool: Pubkey,
+    pub protocol: Protocol,
+    pub apy_bps: u16,
+}
+
+#[event]
+pub struct Rebalanced {
+    pub vault: Pubkey,
+    pub protocol: Protocol,
+    /// Moved from the reserve into the pool.
+    pub to_pool: u64,
+    /// Moved from the pool back to the reserve.
+    pub to_reserve: u64,
+    pub pool_deployed: u64,
+    pub reserve_after: u64,
+}
+
+#[event]
+pub struct PracticeYieldAccrued {
+    pub vault: Pubkey,
+    pub protocol: Protocol,
+    pub interest: u64,
+    pub pool_deployed: u64,
+}
+
+#[event]
+pub struct PoolLiquidityPulled {
+    pub vault: Pubkey,
+    pub protocol: Protocol,
+    pub amount: u64,
 }

@@ -4,6 +4,7 @@ export * from "./generated";
 // Hand-written helpers.
 export * from "./math";
 export * from "./pdas";
+export * from "./pools";
 export * from "./position";
 export * from "./actions";
 export * from "./errors";

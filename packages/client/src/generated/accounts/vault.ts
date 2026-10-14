@@ -82,7 +82,7 @@ export type Vault = {
   totalShares: bigint;
   /** Shares locked in pending withdrawal requests. */
   pendingWithdrawalShares: bigint;
-  /** Assets deployed to external protocols. Always 0 until the allocator ships. */
+  /** Assets the vault has moved out of the reserve into practice pools. */
   deployedAssets: bigint;
   cumulativeDeposits: bigint;
   cumulativeWithdrawals: bigint;
@@ -115,7 +115,7 @@ export type VaultArgs = {
   totalShares: number | bigint;
   /** Shares locked in pending withdrawal requests. */
   pendingWithdrawalShares: number | bigint;
-  /** Assets deployed to external protocols. Always 0 until the allocator ships. */
+  /** Assets the vault has moved out of the reserve into practice pools. */
   deployedAssets: number | bigint;
   cumulativeDeposits: number | bigint;
   cumulativeWithdrawals: number | bigint;

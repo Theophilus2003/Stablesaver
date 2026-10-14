@@ -35,3 +35,21 @@ pub const MIN_WINDOW_SECONDS: i64 = 60 * 60;
 pub const MAX_WINDOW_SECONDS: i64 = 7 * 24 * 60 * 60;
 
 pub const ACCOUNT_VERSION: u8 = 1;
+
+#[constant]
+pub const POOL_SEED: &[u8] = b"pool";
+#[constant]
+pub const POOL_TOKENS_SEED: &[u8] = b"pool_tokens";
+#[constant]
+pub const YIELD_SPONSOR_SEED: &[u8] = b"yield_sponsor";
+
+/// Share of vault assets `rebalance` always leaves in the reserve, so most
+/// withdrawals are paid straight from it.
+#[constant]
+pub const LIQUIDITY_BUFFER_BPS: u16 = 2_000;
+
+/// Highest fixed rate a practice pool may pay (30% a year).
+#[constant]
+pub const MAX_PRACTICE_APY_BPS: u16 = 3_000;
+
+pub const SECONDS_PER_YEAR: i64 = 365 * 24 * 60 * 60;

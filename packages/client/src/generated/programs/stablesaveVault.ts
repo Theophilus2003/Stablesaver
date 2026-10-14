@@ -34,8 +34,11 @@ import {
   type SelfPlanAndSendFunctions,
 } from "@solana/program-client-core";
 import {
+  getPracticePoolCodec,
   getUserPositionCodec,
   getVaultCodec,
+  type PracticePool,
+  type PracticePoolArgs,
   type UserPosition,
   type UserPositionArgs,
   type Vault,
@@ -43,11 +46,14 @@ import {
 } from "../accounts";
 import {
   getAcceptAuthorityInstruction,
+  getAccruePracticeYieldInstructionAsync,
   getCancelWithdrawalInstructionAsync,
   getDepositInstructionAsync,
   getExecuteWithdrawalInstructionAsync,
   getInitializeVaultInstructionAsync,
+  getOpenPracticePoolInstructionAsync,
   getPauseInstruction,
+  getRebalanceInstruction,
   getRequestWithdrawalInstructionAsync,
   getSetGuardianInstruction,
   getTransferAuthorityInstruction,
@@ -56,11 +62,14 @@ import {
   getUpdateStrategyInstruction,
   getWithdrawInstructionAsync,
   parseAcceptAuthorityInstruction,
+  parseAccruePracticeYieldInstruction,
   parseCancelWithdrawalInstruction,
   parseDepositInstruction,
   parseExecuteWithdrawalInstruction,
   parseInitializeVaultInstruction,
+  parseOpenPracticePoolInstruction,
   parsePauseInstruction,
+  parseRebalanceInstruction,
   parseRequestWithdrawalInstruction,
   parseSetGuardianInstruction,
   parseTransferAuthorityInstruction,
@@ -69,16 +78,21 @@ import {
   parseUpdateStrategyInstruction,
   parseWithdrawInstruction,
   type AcceptAuthorityInput,
+  type AccruePracticeYieldAsyncInput,
   type CancelWithdrawalAsyncInput,
   type DepositAsyncInput,
   type ExecuteWithdrawalAsyncInput,
   type InitializeVaultAsyncInput,
+  type OpenPracticePoolAsyncInput,
   type ParsedAcceptAuthorityInstruction,
+  type ParsedAccruePracticeYieldInstruction,
   type ParsedCancelWithdrawalInstruction,
   type ParsedDepositInstruction,
   type ParsedExecuteWithdrawalInstruction,
   type ParsedInitializeVaultInstruction,
+  type ParsedOpenPracticePoolInstruction,
   type ParsedPauseInstruction,
+  type ParsedRebalanceInstruction,
   type ParsedRequestWithdrawalInstruction,
   type ParsedSetGuardianInstruction,
   type ParsedTransferAuthorityInstruction,
@@ -87,6 +101,7 @@ import {
   type ParsedUpdateStrategyInstruction,
   type ParsedWithdrawInstruction,
   type PauseInput,
+  type RebalanceInput,
   type RequestWithdrawalAsyncInput,
   type SetGuardianInput,
   type TransferAuthorityInput,
@@ -95,12 +110,18 @@ import {
   type UpdateStrategyInput,
   type WithdrawAsyncInput,
 } from "../instructions";
-import { findPositionPda, findReservePda } from "../pdas";
+import {
+  findPositionPda,
+  findReservePda,
+  findTokensPda,
+  findYieldSponsorPda,
+} from "../pdas";
 
 export const STABLESAVE_VAULT_PROGRAM_ADDRESS =
   "FNeatGcWmVKVZq5BuXMQ2aaoAxjbfms6GzenerUHxWBj" as Address<"FNeatGcWmVKVZq5BuXMQ2aaoAxjbfms6GzenerUHxWBj">;
 
 export enum StablesaveVaultAccount {
+  PracticePool,
   UserPosition,
   Vault,
 }
@@ -109,6 +130,17 @@ export function identifyStablesaveVaultAccount(
   account: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
 ): StablesaveVaultAccount {
   const data = "data" in account ? account.data : account;
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([26, 83, 116, 57, 3, 162, 28, 11]),
+      ),
+      0,
+    )
+  ) {
+    return StablesaveVaultAccount.PracticePool;
+  }
   if (
     containsBytes(
       data,
@@ -144,6 +176,10 @@ export enum StablesaveVaultEvent {
   GuardianChanged,
   LimitsUpdated,
   PauseChanged,
+  PoolLiquidityPulled,
+  PracticePoolOpened,
+  PracticeYieldAccrued,
+  Rebalanced,
   StrategyUpdated,
   VaultInitialized,
   WithdrawalCancelled,
@@ -226,6 +262,50 @@ export function identifyStablesaveVaultEvent(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([39, 85, 81, 143, 72, 177, 191, 117]),
+      ),
+      0,
+    )
+  ) {
+    return StablesaveVaultEvent.PoolLiquidityPulled;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([17, 130, 104, 132, 221, 140, 113, 120]),
+      ),
+      0,
+    )
+  ) {
+    return StablesaveVaultEvent.PracticePoolOpened;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([189, 119, 218, 215, 108, 165, 32, 32]),
+      ),
+      0,
+    )
+  ) {
+    return StablesaveVaultEvent.PracticeYieldAccrued;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([74, 101, 57, 244, 181, 179, 52, 182]),
+      ),
+      0,
+    )
+  ) {
+    return StablesaveVaultEvent.Rebalanced;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([103, 50, 233, 252, 65, 157, 43, 94]),
       ),
       0,
@@ -295,11 +375,14 @@ export function identifyStablesaveVaultEvent(
 
 export enum StablesaveVaultInstruction {
   AcceptAuthority,
+  AccruePracticeYield,
   CancelWithdrawal,
   Deposit,
   ExecuteWithdrawal,
   InitializeVault,
+  OpenPracticePool,
   Pause,
+  Rebalance,
   RequestWithdrawal,
   SetGuardian,
   TransferAuthority,
@@ -323,6 +406,17 @@ export function identifyStablesaveVaultInstruction(
     )
   ) {
     return StablesaveVaultInstruction.AcceptAuthority;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([7, 141, 120, 57, 26, 83, 158, 162]),
+      ),
+      0,
+    )
+  ) {
+    return StablesaveVaultInstruction.AccruePracticeYield;
   }
   if (
     containsBytes(
@@ -372,12 +466,34 @@ export function identifyStablesaveVaultInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([54, 10, 175, 96, 197, 183, 238, 139]),
+      ),
+      0,
+    )
+  ) {
+    return StablesaveVaultInstruction.OpenPracticePool;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([211, 22, 221, 251, 74, 121, 193, 47]),
       ),
       0,
     )
   ) {
     return StablesaveVaultInstruction.Pause;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([108, 158, 77, 9, 210, 52, 88, 62]),
+      ),
+      0,
+    )
+  ) {
+    return StablesaveVaultInstruction.Rebalance;
   }
   if (
     containsBytes(
@@ -469,6 +585,9 @@ export type ParsedStablesaveVaultInstruction<
       instructionType: StablesaveVaultInstruction.AcceptAuthority;
     } & ParsedAcceptAuthorityInstruction<TProgram>)
   | ({
+      instructionType: StablesaveVaultInstruction.AccruePracticeYield;
+    } & ParsedAccruePracticeYieldInstruction<TProgram>)
+  | ({
       instructionType: StablesaveVaultInstruction.CancelWithdrawal;
     } & ParsedCancelWithdrawalInstruction<TProgram>)
   | ({
@@ -481,8 +600,14 @@ export type ParsedStablesaveVaultInstruction<
       instructionType: StablesaveVaultInstruction.InitializeVault;
     } & ParsedInitializeVaultInstruction<TProgram>)
   | ({
+      instructionType: StablesaveVaultInstruction.OpenPracticePool;
+    } & ParsedOpenPracticePoolInstruction<TProgram>)
+  | ({
       instructionType: StablesaveVaultInstruction.Pause;
     } & ParsedPauseInstruction<TProgram>)
+  | ({
+      instructionType: StablesaveVaultInstruction.Rebalance;
+    } & ParsedRebalanceInstruction<TProgram>)
   | ({
       instructionType: StablesaveVaultInstruction.RequestWithdrawal;
     } & ParsedRequestWithdrawalInstruction<TProgram>)
@@ -517,6 +642,13 @@ export function parseStablesaveVaultInstruction<TProgram extends string>(
         ...parseAcceptAuthorityInstruction(instruction),
       };
     }
+    case StablesaveVaultInstruction.AccruePracticeYield: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: StablesaveVaultInstruction.AccruePracticeYield,
+        ...parseAccruePracticeYieldInstruction(instruction),
+      };
+    }
     case StablesaveVaultInstruction.CancelWithdrawal: {
       assertIsInstructionWithAccounts(instruction);
       return {
@@ -545,11 +677,25 @@ export function parseStablesaveVaultInstruction<TProgram extends string>(
         ...parseInitializeVaultInstruction(instruction),
       };
     }
+    case StablesaveVaultInstruction.OpenPracticePool: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: StablesaveVaultInstruction.OpenPracticePool,
+        ...parseOpenPracticePoolInstruction(instruction),
+      };
+    }
     case StablesaveVaultInstruction.Pause: {
       assertIsInstructionWithAccounts(instruction);
       return {
         instructionType: StablesaveVaultInstruction.Pause,
         ...parsePauseInstruction(instruction),
+      };
+    }
+    case StablesaveVaultInstruction.Rebalance: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: StablesaveVaultInstruction.Rebalance,
+        ...parseRebalanceInstruction(instruction),
       };
     }
     case StablesaveVaultInstruction.RequestWithdrawal: {
@@ -622,6 +768,8 @@ export type StablesaveVaultPlugin = {
 };
 
 export type StablesaveVaultPluginAccounts = {
+  practicePool: ReturnType<typeof getPracticePoolCodec> &
+    SelfFetchFunctions<PracticePoolArgs, PracticePool>;
   userPosition: ReturnType<typeof getUserPositionCodec> &
     SelfFetchFunctions<UserPositionArgs, UserPosition>;
   vault: ReturnType<typeof getVaultCodec> &
@@ -632,6 +780,10 @@ export type StablesaveVaultPluginInstructions = {
   acceptAuthority: (
     input: AcceptAuthorityInput,
   ) => ReturnType<typeof getAcceptAuthorityInstruction> &
+    SelfPlanAndSendFunctions;
+  accruePracticeYield: (
+    input: AccruePracticeYieldAsyncInput,
+  ) => ReturnType<typeof getAccruePracticeYieldInstructionAsync> &
     SelfPlanAndSendFunctions;
   cancelWithdrawal: (
     input: CancelWithdrawalAsyncInput,
@@ -648,9 +800,16 @@ export type StablesaveVaultPluginInstructions = {
     input: InitializeVaultAsyncInput,
   ) => ReturnType<typeof getInitializeVaultInstructionAsync> &
     SelfPlanAndSendFunctions;
+  openPracticePool: (
+    input: OpenPracticePoolAsyncInput,
+  ) => ReturnType<typeof getOpenPracticePoolInstructionAsync> &
+    SelfPlanAndSendFunctions;
   pause: (
     input: PauseInput,
   ) => ReturnType<typeof getPauseInstruction> & SelfPlanAndSendFunctions;
+  rebalance: (
+    input: RebalanceInput,
+  ) => ReturnType<typeof getRebalanceInstruction> & SelfPlanAndSendFunctions;
   requestWithdrawal: (
     input: RequestWithdrawalAsyncInput,
   ) => ReturnType<typeof getRequestWithdrawalInstructionAsync> &
@@ -679,8 +838,10 @@ export type StablesaveVaultPluginInstructions = {
 };
 
 export type StablesaveVaultPluginPdas = {
+  yieldSponsor: typeof findYieldSponsorPda;
   position: typeof findPositionPda;
   reserve: typeof findReservePda;
+  tokens: typeof findTokensPda;
 };
 
 export type StablesaveVaultPluginRequirements = ClientWithRpc<
@@ -696,6 +857,7 @@ export function stablesaveVaultProgram() {
     return extendClient(client, {
       stablesaveVault: <StablesaveVaultPlugin>{
         accounts: {
+          practicePool: addSelfFetchFunctions(client, getPracticePoolCodec()),
           userPosition: addSelfFetchFunctions(client, getUserPositionCodec()),
           vault: addSelfFetchFunctions(client, getVaultCodec()),
         },
@@ -704,6 +866,11 @@ export function stablesaveVaultProgram() {
             addSelfPlanAndSendFunctions(
               client,
               getAcceptAuthorityInstruction(input),
+            ),
+          accruePracticeYield: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getAccruePracticeYieldInstructionAsync(input),
             ),
           cancelWithdrawal: (input) =>
             addSelfPlanAndSendFunctions(
@@ -725,8 +892,15 @@ export function stablesaveVaultProgram() {
               client,
               getInitializeVaultInstructionAsync(input),
             ),
+          openPracticePool: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getOpenPracticePoolInstructionAsync(input),
+            ),
           pause: (input) =>
             addSelfPlanAndSendFunctions(client, getPauseInstruction(input)),
+          rebalance: (input) =>
+            addSelfPlanAndSendFunctions(client, getRebalanceInstruction(input)),
           requestWithdrawal: (input) =>
             addSelfPlanAndSendFunctions(
               client,
@@ -760,7 +934,12 @@ export function stablesaveVaultProgram() {
               getWithdrawInstructionAsync(input),
             ),
         },
-        pdas: { position: findPositionPda, reserve: findReservePda },
+        pdas: {
+          yieldSponsor: findYieldSponsorPda,
+          position: findPositionPda,
+          reserve: findReservePda,
+          tokens: findTokensPda,
+        },
         identifyAccount: identifyStablesaveVaultAccount,
         identifyInstruction: identifyStablesaveVaultInstruction,
         parseInstruction: parseStablesaveVaultInstruction,

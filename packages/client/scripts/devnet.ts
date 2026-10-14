@@ -10,8 +10,10 @@
  *     --program <program id> --to <your wallet> [--amount 10000] [--mint <existing 6-decimal mint>]
  *
  * `setup` creates a 6-decimal test token ("test USD", mint authority = the
- * deployer) unless --mint is given, sends --amount of it to --to, and opens
- * the three vaults (safe / balanced / bigger) for that token. Safe to re-run.
+ * deployer) unless --mint is given, sends --amount of it to --to, opens the
+ * three vaults (safe / balanced / bigger) for that token, opens a practice pool
+ * for each protocol in each vault's strategy, and funds each vault's yield
+ * sponsor with test tokens. Safe to re-run.
  *
  *   # Local rehearsal only: deposit and withdraw from a throwaway wallet
  *   pnpm --filter @stablesave/client devnet smoke --rpc http://127.0.0.1:8899 --program <id> --mint <mint>
@@ -44,10 +46,17 @@ import {
 } from "@solana-program/token";
 import {
   buildDepositInstruction,
+  buildSyncPoolsInstructions,
   buildWithdrawPlan,
   deriveVaultAddresses,
+  fetchMaybePracticePool,
   fetchMaybeUserPosition,
+  fetchPracticePools,
   fetchVault,
+  findPracticePoolPda,
+  findYieldSponsorPda,
+  getOpenPracticePoolInstructionAsync,
+  poolLiquidity,
   summarizePosition,
   fromBaseUnits,
   toBaseUnits,
@@ -56,6 +65,14 @@ import { initializeVaults } from "./initialize-vaults";
 import { connect, deriveKeypair, keypairBytes, sendInstructions, type Connection } from "./lib";
 
 const DECIMALS = 6;
+
+/**
+ * Fixed practice rates by protocol index (basis points a year): Kamino 5.20%,
+ * MarginFi 5.90%, Drift 6.80%, Save 5.05%. Practice figures, not market rates.
+ */
+const PRACTICE_APY_BPS: Record<number, number> = { 0: 520, 1: 590, 2: 680, 3: 505 };
+/** Test tokens kept in each vault's yield sponsor to pay practice interest. */
+const SPONSOR_TARGET = 5_000;
 
 function flag(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -159,10 +176,62 @@ async function setup() {
   }
 
   const vaults = await initializeVaults({ connection, authority: deployer, mint, programAddress });
+  await openPracticePools(connection, deployer, mint, programAddress, vaults, canMint);
   output({ program_id: programAddress, mint, vault_safe: vaults[0]!, vault_balanced: vaults[1]!, vault_bigger: vaults[2]! });
 }
 
-/** Rehearsal: a throwaway wallet deposits 100 and withdraws 40 through the client builders. */
+/**
+ * Open a practice pool for every protocol in each vault's strategy, top up the
+ * yield sponsor (when the deployer can mint the token), and rebalance once.
+ */
+async function openPracticePools(
+  connection: Connection,
+  deployer: KeyPairSigner,
+  mint: Address,
+  programAddress: Address,
+  vaults: readonly Address[],
+  canMint: boolean,
+) {
+  for (const vaultAddress of vaults) {
+    const vault = (await fetchVault(connection.rpc, vaultAddress)).data;
+    for (const allocation of vault.strategy.allocations) {
+      const [pool] = await findPracticePoolPda({ vault: vaultAddress, protocol: allocation.protocol }, { programAddress });
+      if ((await fetchMaybePracticePool(connection.rpc, pool)).exists) {
+        console.log(`vault ${vaultAddress}: practice pool ${allocation.protocol} already open`);
+        continue;
+      }
+      const apyBps = PRACTICE_APY_BPS[allocation.protocol] ?? 500;
+      const ix = await getOpenPracticePoolInstructionAsync(
+        { authority: deployer, vault: vaultAddress, pool, mint, protocol: allocation.protocol, apyBps },
+        { programAddress },
+      );
+      console.log(`vault ${vaultAddress}: opened practice pool ${allocation.protocol} at ${apyBps / 100}% (${await sendInstructions(connection, deployer, [ix])})`);
+    }
+
+    const [sponsor] = await findYieldSponsorPda({ vault: vaultAddress }, { programAddress });
+    const held = fromBaseUnits(BigInt((await connection.rpc.getTokenAccountBalance(sponsor).send()).value.amount));
+    if (held < SPONSOR_TARGET / 2) {
+      if (canMint) {
+        const top = SPONSOR_TARGET - held;
+        const sig = await sendInstructions(connection, deployer, [
+          getMintToInstruction({ mint, token: sponsor, mintAuthority: deployer, amount: toBaseUnits(top, DECIMALS) }),
+        ]);
+        console.log(`vault ${vaultAddress}: added ${top} test tokens to the yield sponsor (${sig})`);
+      } else {
+        console.log(`vault ${vaultAddress}: yield sponsor ${sponsor} holds ${held}; send it tokens to pay practice interest`);
+      }
+    }
+
+    const pools = await fetchPracticePools(connection.rpc, vaultAddress, { programAddress });
+    const sync = await buildSyncPoolsInstructions({ vaultAddress, vault, pools, programAddress });
+    if (sync.length > 0) console.log(`vault ${vaultAddress}: rebalanced (${await sendInstructions(connection, deployer, sync)})`);
+  }
+}
+
+/**
+ * Rehearsal: a throwaway wallet deposits 100, the vault splits it into its
+ * practice pools, then a 40 withdrawal pulls part of it back from the pools.
+ */
 async function smoke() {
   const deployer = await createKeyPairSignerFromBytes(deployerSecret());
   const connection = connect(required("rpc"));
@@ -189,9 +258,19 @@ async function smoke() {
     amount: toBaseUnits(100),
     programAddress,
   });
-  console.log(`deposit 100: ${await sendInstructions(connection, owner, [deposit])}`);
+  let pools = await fetchPracticePools(connection.rpc, ids.vault, { programAddress });
+  if (pools.length === 0) throw new Error("The balanced vault has no practice pools; run setup first.");
+  const sync = await buildSyncPoolsInstructions({ vaultAddress: ids.vault, vault, pools, programAddress });
+  console.log(`deposit 100 and rebalance: ${await sendInstructions(connection, owner, [deposit, ...sync])}`);
 
   vault = (await fetchVault(connection.rpc, ids.vault)).data;
+  pools = await fetchPracticePools(connection.rpc, ids.vault, { programAddress });
+  const inPools = poolLiquidity(pools);
+  const reserveNow = await reserveOf();
+  if (inPools !== vault.deployedAssets) throw new Error(`Pools hold ${inPools} but the vault counts ${vault.deployedAssets}.`);
+  if (inPools === 0n) throw new Error("Rebalance didn't move anything into the practice pools.");
+  if (reserveNow * 10_000n < (reserveNow + inPools) * 1_999n) throw new Error("Rebalance dipped below the 20% liquidity buffer.");
+  console.log(`split: ${fromBaseUnits(inPools)} in ${pools.length} practice pools, ${fromBaseUnits(reserveNow)} kept liquid ✓`);
   const position = await fetchMaybeUserPosition(connection.rpc, ids.position!);
   if (!position.exists || position.data.shares === 0n) throw new Error("Deposit didn't create a position with shares.");
   const summary = summarizePosition(vault, position.data, await reserveOf());
@@ -207,6 +286,7 @@ async function smoke() {
     amount: toBaseUnits(40),
     nowSeconds: BigInt(Math.floor(Date.now() / 1000)),
     programAddress,
+    pools,
   });
   if (plan.timelocked !== 0n) throw new Error("A 40 withdrawal shouldn't need the timelock.");
   console.log(`withdraw 40: ${await sendInstructions(connection, owner, plan.instructions)}`);
@@ -214,6 +294,11 @@ async function smoke() {
   const wallet = fromBaseUnits((await fetchToken(connection.rpc, ownerToken)).data.amount);
   if (Math.abs(wallet - 940) > 0.000_01) throw new Error(`Expected 940 in the wallet after deposit and withdrawal, got ${wallet}.`);
   console.log(`wallet balance after deposit and withdrawal: ${wallet} ✓`);
+
+  const after = (await fetchVault(connection.rpc, ids.vault)).data;
+  const poolsAfter = poolLiquidity(await fetchPracticePools(connection.rpc, ids.vault, { programAddress }));
+  if (poolsAfter !== after.deployedAssets) throw new Error(`After the withdrawal, pools hold ${poolsAfter} but the vault counts ${after.deployedAssets}.`);
+  console.log(`pools after withdrawal: ${fromBaseUnits(poolsAfter)} (accounting matches) ✓`);
 }
 
 const commands: Record<string, () => Promise<void>> = { keys, setup, smoke };

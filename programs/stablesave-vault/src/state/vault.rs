@@ -66,7 +66,7 @@ pub struct Vault {
     pub total_shares: u64,
     /// Shares locked in pending withdrawal requests.
     pub pending_withdrawal_shares: u64,
-    /// Assets deployed to external protocols. Always 0 until the allocator ships.
+    /// Assets the vault has moved out of the reserve into practice pools.
     pub deployed_assets: u64,
     pub cumulative_deposits: u64,
     pub cumulative_withdrawals: u64,

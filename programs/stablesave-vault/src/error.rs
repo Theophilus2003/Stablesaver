@@ -52,4 +52,8 @@ pub enum VaultError {
     MathOverflow,
     #[msg("Signer is not the pending authority")]
     NotPendingAuthority,
+    #[msg("Practice pool or its token account doesn't belong to this vault")]
+    InvalidPoolAccount,
+    #[msg("Practice rate must be at most 3,000 basis points (30% a year)")]
+    InvalidPracticeRate,
 }

@@ -26,9 +26,9 @@ import {
 } from ".";
 
 /**
- * Target allocation for the vault. In this version funds stay in the vault
- * reserve; an allocator that deploys to protocols via CPI will read this
- * configuration (and the `StrategyUpdated` events) in a later release.
+ * Target allocation for the vault. `rebalance` moves funds between the reserve
+ * and each protocol's practice pool toward these weights; CPI into the real
+ * protocols will read the same configuration in a later release.
  */
 export type StrategyConfig = {
   /** Incremented on every update so clients can detect changes. */

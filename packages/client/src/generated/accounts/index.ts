@@ -6,5 +6,6 @@
  * @see https://github.com/codama-idl/codama
  */
 
+export * from "./practicePool";
 export * from "./userPosition";
 export * from "./vault";

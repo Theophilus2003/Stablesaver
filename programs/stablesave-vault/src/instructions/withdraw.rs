@@ -1,12 +1,17 @@
 use crate::constants::*;
 use crate::error::VaultError;
-use crate::events::{WithdrawalExecuted, Withdrawn};
+use crate::events::{PoolLiquidityPulled, WithdrawalExecuted, Withdrawn};
+use crate::instructions::practice_pools::vault_transfer;
 use crate::math;
 use crate::state::*;
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, TransferChecked};
 
 /// Accounts shared by `withdraw` and `execute_withdrawal`.
+///
+/// Optional remaining accounts: (practice pool, pool token account) pairs,
+/// writable. When the reserve can't cover the payout, the shortfall is pulled
+/// from these pools in order.
 #[derive(Accounts)]
 pub struct Withdraw<'info> {
     pub owner: Signer<'info>,
@@ -43,6 +48,51 @@ pub struct Withdraw<'info> {
 }
 
 impl<'info> Withdraw<'info> {
+    /// Tops the reserve up to `assets` from the practice pools in `remaining`.
+    /// Total assets don't change: money only moves between the vault's accounts.
+    // `% 2` rather than `is_multiple_of`: the SBF toolchain's Rust may predate it.
+    #[allow(clippy::manual_is_multiple_of)]
+    fn ensure_liquidity(&mut self, assets: u64, remaining: &'info [AccountInfo<'info>]) -> Result<()> {
+        let mut available = self.reserve.amount;
+        if available >= assets {
+            return Ok(());
+        }
+        require!(remaining.len() % 2 == 0, VaultError::InvalidPoolAccount);
+        for pair in remaining.chunks(2) {
+            if available >= assets {
+                break;
+            }
+            let mut pool: Account<'info, PracticePool> = Account::try_from(&pair[0])?;
+            require_keys_eq!(pool.vault, self.vault.key(), VaultError::InvalidPoolAccount);
+            require_keys_eq!(pool.tokens, pair[1].key(), VaultError::InvalidPoolAccount);
+            let tokens: Account<'info, TokenAccount> = Account::try_from(&pair[1])?;
+            let take = (assets - available).min(pool.deployed).min(tokens.amount);
+            if take == 0 {
+                continue;
+            }
+            vault_transfer(
+                &self.token_program,
+                &self.vault,
+                &self.mint,
+                pair[1].clone(),
+                self.reserve.to_account_info(),
+                take,
+            )?;
+            pool.deployed = pool.deployed.checked_sub(take).ok_or_else(|| error!(VaultError::MathOverflow))?;
+            pool.exit(&crate::ID)?;
+            self.vault.deployed_assets = self
+                .vault
+                .deployed_assets
+                .checked_sub(take)
+                .ok_or_else(|| error!(VaultError::MathOverflow))?;
+            available = available.checked_add(take).ok_or_else(|| error!(VaultError::MathOverflow))?;
+            emit!(PoolLiquidityPulled { vault: self.vault.key(), protocol: pool.protocol, amount: take });
+        }
+        self.reserve.reload()?;
+        require!(self.reserve.amount >= assets, VaultError::InsufficientLiquidity);
+        Ok(())
+    }
+
     fn pay_out(&self, assets: u64) -> Result<()> {
         require!(assets <= self.reserve.amount, VaultError::InsufficientLiquidity);
         let mint = self.vault.mint;
@@ -68,7 +118,7 @@ impl<'info> Withdraw<'info> {
 
 /// Instant withdrawal of `shares`, limited per position and per vault within
 /// the rolling window. Larger amounts must use `request_withdrawal`.
-pub fn handle_withdraw(ctx: Context<Withdraw>, shares: u64, min_assets_out: u64) -> Result<()> {
+pub fn handle_withdraw<'info>(ctx: Context<'info, Withdraw<'info>>, shares: u64, min_assets_out: u64) -> Result<()> {
     let accounts = &ctx.accounts;
     require!(!accounts.vault.paused, VaultError::VaultPaused);
     require!(shares > 0, VaultError::ZeroAmount);
@@ -112,7 +162,8 @@ pub fn handle_withdraw(ctx: Context<Withdraw>, shares: u64, min_assets_out: u64)
         VaultError::VaultOutflowLimitReached
     );
 
-    accounts.pay_out(assets)?;
+    ctx.accounts.ensure_liquidity(assets, ctx.remaining_accounts)?;
+    ctx.accounts.pay_out(assets)?;
 
     let position = &mut ctx.accounts.position;
     position.shares = position
@@ -151,7 +202,7 @@ pub fn handle_withdraw(ctx: Context<Withdraw>, shares: u64, min_assets_out: u64)
 
 /// Complete a timelocked withdrawal once `pending_unlock_ts` has passed.
 /// Priced at execution, so the position keeps earning (or losing) until then.
-pub fn handle_execute_withdrawal(ctx: Context<Withdraw>, min_assets_out: u64) -> Result<()> {
+pub fn handle_execute_withdrawal<'info>(ctx: Context<'info, Withdraw<'info>>, min_assets_out: u64) -> Result<()> {
     let accounts = &ctx.accounts;
     require!(!accounts.vault.paused, VaultError::VaultPaused);
     let shares = accounts.position.pending_shares;
@@ -165,7 +216,8 @@ pub fn handle_execute_withdrawal(ctx: Context<Withdraw>, min_assets_out: u64) ->
     require!(assets > 0, VaultError::ZeroAmount);
     require!(assets >= min_assets_out, VaultError::SlippageExceeded);
 
-    accounts.pay_out(assets)?;
+    ctx.accounts.ensure_liquidity(assets, ctx.remaining_accounts)?;
+    ctx.accounts.pay_out(assets)?;
 
     let position = &mut ctx.accounts.position;
     position.pending_shares = 0;

@@ -31,8 +31,8 @@ use {
     solana_transaction_error::TransactionError,
     stablesave_vault::{
         accounts as ix_accounts, error::VaultError, instruction as ix, Allocation,
-        InitializeVaultParams, Protocol, UserPosition, Vault, VaultLimits, POSITION_SEED,
-        RESERVE_SEED, VAULT_SEED,
+        InitializeVaultParams, PracticePool, Protocol, UserPosition, Vault, VaultLimits, POOL_SEED,
+        POOL_TOKENS_SEED, POSITION_SEED, RESERVE_SEED, VAULT_SEED, YIELD_SPONSOR_SEED,
     },
     std::path::PathBuf,
 };
@@ -406,4 +406,226 @@ fn strategy_updates_are_validated_on_chain() {
     let vault: Vault = read(&env.svm, &env.vault);
     assert_eq!(vault.strategy.allocations, good);
     assert_eq!(vault.strategy.version, 2);
+}
+
+/* ------------------------------------------------------------ practice pools */
+
+const BALANCED_RATES: [(Protocol, u16); 3] = [(Protocol::Kamino, 520), (Protocol::Marginfi, 590), (Protocol::Save, 505)];
+
+fn pool_addresses(env: &Env, protocol: Protocol) -> (Pubkey, Pubkey) {
+    let program_id = stablesave_vault::id();
+    let pool = Pubkey::find_program_address(&[POOL_SEED, env.vault.as_ref(), &[protocol.index()]], &program_id).0;
+    let tokens = Pubkey::find_program_address(&[POOL_TOKENS_SEED, pool.as_ref()], &program_id).0;
+    (pool, tokens)
+}
+
+fn sponsor_address(env: &Env) -> Pubkey {
+    Pubkey::find_program_address(&[YIELD_SPONSOR_SEED, env.vault.as_ref()], &stablesave_vault::id()).0
+}
+
+fn open_pool_ix(env: &Env, authority: Pubkey, protocol: Protocol, apy_bps: u16) -> Instruction {
+    let (pool, tokens) = pool_addresses(env, protocol);
+    Instruction::new_with_bytes(
+        stablesave_vault::id(),
+        &ix::OpenPracticePool { protocol, apy_bps }.data(),
+        ix_accounts::OpenPracticePool {
+            authority,
+            vault: env.vault,
+            pool,
+            tokens,
+            yield_sponsor: sponsor_address(env),
+            mint: env.mint,
+            token_program: spl_token::ID,
+            system_program: system_program::ID,
+        }
+        .to_account_metas(None),
+    )
+}
+
+fn rebalance_ix(env: &Env, protocol: Protocol) -> Instruction {
+    let (pool, tokens) = pool_addresses(env, protocol);
+    Instruction::new_with_bytes(
+        stablesave_vault::id(),
+        &ix::Rebalance {}.data(),
+        ix_accounts::Rebalance { vault: env.vault, pool, tokens, reserve: env.reserve, mint: env.mint, token_program: spl_token::ID }
+            .to_account_metas(None),
+    )
+}
+
+fn accrue_ix(env: &Env, protocol: Protocol) -> Instruction {
+    let (pool, tokens) = pool_addresses(env, protocol);
+    Instruction::new_with_bytes(
+        stablesave_vault::id(),
+        &ix::AccruePracticeYield {}.data(),
+        ix_accounts::AccruePracticeYield {
+            vault: env.vault,
+            pool,
+            tokens,
+            yield_sponsor: sponsor_address(env),
+            mint: env.mint,
+            token_program: spl_token::ID,
+        }
+        .to_account_metas(None),
+    )
+}
+
+/// (pool, pool tokens) pairs for withdraw's remaining accounts.
+fn pool_remaining_accounts(env: &Env) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
+    BALANCED_RATES
+        .iter()
+        .flat_map(|(protocol, _)| {
+            let (pool, tokens) = pool_addresses(env, *protocol);
+            [
+                anchor_lang::solana_program::instruction::AccountMeta::new(pool, false),
+                anchor_lang::solana_program::instruction::AccountMeta::new(tokens, false),
+            ]
+        })
+        .collect()
+}
+
+/// Initialized balanced vault with its three practice pools open, and 10,000 deposited.
+fn with_pools(bytes: &[u8]) -> Env {
+    let mut env = initialized(bytes);
+    let (admin, user) = (env.admin.insecure_clone(), env.user.insecure_clone());
+    let opens: Vec<Instruction> = BALANCED_RATES.iter().map(|(p, r)| open_pool_ix(&env, admin.pubkey(), *p, *r)).collect();
+    send(&mut env.svm, &opens, &admin, &[&admin]).unwrap();
+    let deposit = deposit_ix(&env, 10_000 * USDC);
+    send(&mut env.svm, &[deposit], &user, &[&user]).unwrap();
+    env
+}
+
+fn rebalance_all(env: &mut Env) {
+    let payer = env.guardian.insecure_clone(); // anyone can rebalance
+    let ixs: Vec<Instruction> = BALANCED_RATES.iter().map(|(p, _)| rebalance_ix(env, *p)).collect();
+    send(&mut env.svm, &ixs, &payer, &[&payer]).unwrap();
+}
+
+#[test]
+fn only_the_authority_opens_practice_pools() {
+    let bytes = require_program!();
+    let mut env = initialized(&bytes);
+    let (admin, user) = (env.admin.insecure_clone(), env.user.insecure_clone());
+    let ix = open_pool_ix(&env, user.pubkey(), Protocol::Kamino, 520);
+    assert_vault_error(send(&mut env.svm, &[ix], &user, &[&user]), VaultError::Unauthorized);
+    let ix = open_pool_ix(&env, admin.pubkey(), Protocol::Kamino, 3_001);
+    assert_vault_error(send(&mut env.svm, &[ix], &admin, &[&admin]), VaultError::InvalidPracticeRate);
+    let ix = open_pool_ix(&env, admin.pubkey(), Protocol::Kamino, 520);
+    send(&mut env.svm, &[ix], &admin, &[&admin]).unwrap();
+    let pool: PracticePool = read(&env.svm, &pool_addresses(&env, Protocol::Kamino).0);
+    assert_eq!(pool.vault, env.vault);
+    assert_eq!(pool.apy_bps, 520);
+    assert_eq!(pool.deployed, 0);
+}
+
+#[test]
+fn rebalance_splits_by_strategy_and_keeps_a_buffer() {
+    let bytes = require_program!();
+    let mut env = with_pools(&bytes);
+    rebalance_all(&mut env);
+
+    // 80% of 10,000 split 45 / 30 / 25; 20% stays in the reserve.
+    let expected = [(Protocol::Kamino, 3_600), (Protocol::Marginfi, 2_400), (Protocol::Save, 2_000)];
+    for (protocol, amount) in expected {
+        let (pool, tokens) = pool_addresses(&env, protocol);
+        assert_eq!(token_amount(&env.svm, &tokens), amount * USDC, "{protocol:?} tokens");
+        let state: PracticePool = read(&env.svm, &pool);
+        assert_eq!(state.deployed, amount * USDC, "{protocol:?} deployed");
+    }
+    assert_eq!(token_amount(&env.svm, &env.reserve), 2_000 * USDC);
+    let vault: Vault = read(&env.svm, &env.vault);
+    assert_eq!(vault.deployed_assets, 8_000 * USDC);
+
+    // Running it again changes nothing.
+    rebalance_all(&mut env);
+    assert_eq!(token_amount(&env.svm, &env.reserve), 2_000 * USDC);
+}
+
+#[test]
+fn practice_interest_is_paid_from_the_sponsor() {
+    let bytes = require_program!();
+    let mut env = with_pools(&bytes);
+    rebalance_all(&mut env);
+    let sponsor = sponsor_address(&env);
+    set_token_account(&mut env.svm, sponsor, env.mint, env.vault, 1_000 * USDC);
+
+    let mut clock: Clock = env.svm.get_sysvar();
+    clock.unix_timestamp += 365 * 24 * 60 * 60;
+    env.svm.set_sysvar(&clock);
+
+    let payer = env.guardian.insecure_clone();
+    let ix = accrue_ix(&env, Protocol::Kamino);
+    send(&mut env.svm, &[ix], &payer, &[&payer]).unwrap();
+
+    // 3,600 at 5.20% for a year = 187.20.
+    let (pool, tokens) = pool_addresses(&env, Protocol::Kamino);
+    assert_eq!(token_amount(&env.svm, &tokens), 3_787_200_000);
+    assert_eq!(token_amount(&env.svm, &sponsor), 1_000 * USDC - 187_200_000);
+    let state: PracticePool = read(&env.svm, &pool);
+    assert_eq!(state.interest_paid, 187_200_000);
+    let vault: Vault = read(&env.svm, &env.vault);
+    assert_eq!(vault.deployed_assets, 8_000 * USDC + 187_200_000);
+
+    // An empty sponsor pays nothing and doesn't fail.
+    set_token_account(&mut env.svm, sponsor, env.mint, env.vault, 0);
+    let mut clock: Clock = env.svm.get_sysvar();
+    clock.unix_timestamp += 30 * 24 * 60 * 60;
+    env.svm.set_sysvar(&clock);
+    let ix = accrue_ix(&env, Protocol::Marginfi);
+    send(&mut env.svm, &[ix], &payer, &[&payer]).unwrap();
+    let (_, marginfi_tokens) = pool_addresses(&env, Protocol::Marginfi);
+    assert_eq!(token_amount(&env.svm, &marginfi_tokens), 2_400 * USDC);
+}
+
+#[test]
+fn withdrawals_pull_from_the_pools_when_the_reserve_is_short() {
+    let bytes = require_program!();
+    let mut env = with_pools(&bytes);
+    rebalance_all(&mut env);
+    let user = env.user.insecure_clone();
+
+    let position: UserPosition = read(&env.svm, &env.position);
+    let request = Instruction::new_with_bytes(
+        stablesave_vault::id(),
+        &ix::RequestWithdrawal { shares: position.shares }.data(),
+        request_accounts(&env),
+    );
+    send(&mut env.svm, &[request], &user, &[&user]).unwrap();
+    let mut clock: Clock = env.svm.get_sysvar();
+    clock.unix_timestamp += 31 * 60;
+    env.svm.set_sysvar(&clock);
+
+    // The reserve only holds 2,000 of the 10,000: without the pools it can't pay.
+    let execute = |extra: Vec<anchor_lang::solana_program::instruction::AccountMeta>| {
+        let mut accounts = withdraw_accounts(&env);
+        accounts.extend(extra);
+        Instruction::new_with_bytes(stablesave_vault::id(), &ix::ExecuteWithdrawal { min_assets_out: 0 }.data(), accounts)
+    };
+    let without_pools = execute(vec![]);
+    let with_pools = execute(pool_remaining_accounts(&env));
+    assert_vault_error(send(&mut env.svm, &[without_pools], &user, &[&user]), VaultError::InsufficientLiquidity);
+
+    send(&mut env.svm, &[with_pools], &user, &[&user]).unwrap();
+    assert!(token_amount(&env.svm, &env.user_token) >= 9_999 * USDC);
+    let vault: Vault = read(&env.svm, &env.vault);
+    assert_eq!(vault.total_shares, 0);
+    let in_pools: u64 = BALANCED_RATES
+        .iter()
+        .map(|(p, _)| read::<PracticePool>(&env.svm, &pool_addresses(&env, *p).0).deployed)
+        .sum();
+    assert_eq!(in_pools, vault.deployed_assets, "pool accounting matches the vault");
+}
+
+#[test]
+fn pausing_stops_rebalancing() {
+    let bytes = require_program!();
+    let mut env = with_pools(&bytes);
+    let guardian = env.guardian.insecure_clone();
+    let pause = Instruction::new_with_bytes(
+        stablesave_vault::id(),
+        &ix::Pause {}.data(),
+        ix_accounts::Pause { signer: guardian.pubkey(), vault: env.vault }.to_account_metas(None),
+    );
+    send(&mut env.svm, &[pause], &guardian, &[&guardian]).unwrap();
+    let ix = rebalance_ix(&env, Protocol::Kamino);
+    assert_vault_error(send(&mut env.svm, &[ix], &guardian, &[&guardian]), VaultError::VaultPaused);
 }
