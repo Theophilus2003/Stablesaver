@@ -585,7 +585,7 @@ async function main() {
     // Status, kept in sight next to the diagram.
     const SY = UW.y + UW.h + 0.45;
     card(s, { x: UW.x, y: SY, w: UW.w, h: 1.25, fill: SURFACE, line: AMBER, name: "status-card" });
-    text(s, ["Devnet prototype", "Unaudited", "No yield yet"].map((t, k, all) => ({ text: t, options: { breakLine: k < all.length - 1 } })), {
+    text(s, ["Devnet prototype", "Unaudited", "Practice pools"].map((t, k, all) => ({ text: t, options: { breakLine: k < all.length - 1 } })), {
       x: UW.x + 0.25, y: SY + 0.15, w: UW.w - 0.4, h: 0.95, fontSize: 13, bold: true, color: AMBER, valign: "middle", paraSpaceAfter: 2,
     });
 
@@ -594,7 +594,7 @@ async function main() {
     card(s, { ...P, fill: SURFACE, line: PURPLE, name: "program" });
     s.addImage({ data: ic.code, x: P.x + 0.3, y: P.y + 0.25, w: 0.4, h: 0.4, altText: "Program" });
     text(s, "StableSave Vault program", { x: P.x + 0.82, y: P.y + 0.22, w: P.w - 1, h: 0.3, fontSize: 15, bold: true });
-    text(s, "Anchor · Solana devnet · 13 instructions", { x: P.x + 0.82, y: P.y + 0.52, w: P.w - 1, h: 0.28, fontSize: 11, color: MUTED });
+    text(s, "Anchor · Solana devnet · 16 instructions", { x: P.x + 0.82, y: P.y + 0.52, w: P.w - 1, h: 0.28, fontSize: 11, color: MUTED });
     text(s, "PROGRAM-ENFORCED CHECKS", { x: P.x + 0.3, y: P.y + 1.0, w: P.w - 0.6, h: 0.28, fontSize: 10, bold: true, color: GREEN, charSpacing: 2 });
     const checks = [
       "Not paused",
@@ -625,7 +625,7 @@ async function main() {
     const AW = CW - 8.75;
     const accts = [
       ["Vault PDA", '["vault", mint, risk_profile]', "Roles, limits, strategy, share totals"],
-      ["Reserve PDA", '["reserve", vault]', "The deposited tokens; only the vault signs transfers out"],
+      ["Reserve + practice pools", '["reserve"] · ["pool", protocol]', "20% kept liquid; the rest split by strategy weight. Only the vault signs transfers out"],
       ["UserPosition PDA", '["position", vault, owner]', "One depositor's shares and pending withdrawal"],
     ];
     const ah = 1.47;
@@ -640,20 +640,20 @@ async function main() {
     s.addNotes([
       "TIME: about 50 seconds.",
       "",
-      "SAY THIS CLEARLY: this is a separate component, and it's a devnet prototype. It does not earn yield and it is not audited.",
+      "SAY THIS CLEARLY: this is a separate component, and it's a devnet prototype. It splits deposits into practice pools, not real protocols, and it is not audited.",
       "",
       "Key message: the rules of the vault are enforced on-chain by the program, not by the website.",
       "",
       "Talking points:",
-      "- The vault is one Anchor program on Solana devnet with 13 instructions.",
+      "- The vault is one Anchor program on Solana devnet with 16 instructions.",
       "- It uses three kinds of account. These are PDAs: program-derived addresses, which only the program can sign for.",
       "  - Vault: the settings. Who the admins are, the limits, the strategy weights, the share totals. One per token and risk level.",
-      "  - Reserve: holds the deposited tokens. Only the vault can sign a transfer out.",
+      "  - Reserve and practice pools: rebalance keeps 20% of the vault in the reserve for withdrawals and splits the rest into one practice pool per protocol, by the on-chain strategy weights. Anyone can call rebalance, but it can only move money toward the strategy. Only the vault can sign a transfer out.",
       "  - UserPosition: one depositor's shares and any pending withdrawal.",
       "- The user signs a deposit or a withdrawal from their wallet. The program checks it's not paused, the deposit is at least the minimum and under the cap, and the withdrawal fits the instant limits. Anything larger goes through a 30-minute timelock.",
       "- Two admin roles: the authority changes settings and is the only one who can unpause. The guardian can only pause.",
       "",
-      "Do NOT claim: that deposits earn yield, that funds go to Kamino, MarginFi, Drift or Save yet, or that it's audited. The allocator isn't built; deposits stay in the reserve.",
+      "Do NOT claim: that deposits earn market yield, that funds go to Kamino, MarginFi, Drift or Save yet, or that it's audited. The practice pools pay fixed practice rates from a sponsor pot of test tokens; real protocol integration is next.",
       "",
       "Transition: Each of those controls is a trade-off, so let me be explicit about them.",
     ].join("\n"));
@@ -704,7 +704,7 @@ async function main() {
       "- The guardian can pause; only the authority can unpause. A fast emergency stop that one key can't abuse. The cost: today there's no escape hatch if the vault stays paused.",
       "- Shares use 1,000 virtual shares and 1 virtual asset, so the first depositor can't inflate the share price. The cost: tiny rounding losses.",
       "- Only the program's upgrade authority can create vaults, so nobody can front-run vault creation. The cost: that's a single powerful key.",
-      "- Tests: 10 unit and 5 integration tests run against the compiled program on every change, and an automated job deploys it to a local test network and makes a real deposit and withdrawal.",
+      "- Tests: 14 unit and 10 integration tests run against the compiled program on every change, and an automated job deploys it to a local test network, makes a real deposit, checks the split into practice pools and withdraws.",
       "",
       "Do NOT call it audited or production-ready. Bottom line on the slide: devnet only.",
       "",
@@ -722,12 +722,12 @@ async function main() {
       {
         tag: "A · LIVE", color: GREEN, title: "Comparison app", url: "stablesaver-web.vercel.app",
         shot: shots["01-home-hero"], alt: "Comparison app home: amount, estimated earnings and risk preference",
-        steps: ["Open the site", "Enter an amount", "Switch Safe / Balanced / Bigger", "Open an option: the grade", "Show earnings after fees", "$100 + Ethereum: fees win"],
+        steps: ["Find idle money in a wallet", "Switch Safe / Balanced / Bigger", "Open an option: grade, withdraw", "Compare with US T-bills", "$100 + Ethereum: fees win", "Share my estimate"],
       },
       {
         tag: "B · DEVNET PROTOTYPE", color: PURPLE, title: "Vault", url: "Wallet on Solana devnet",
         shot: shots["06-vault-withdraw"], alt: "Vault withdraw screen: 2,000 now, the rest after a 30-minute timelock",
-        steps: ["Switch wallet to devnet", "Open Vault", "Connect the wallet", "Deposit test tokens", "Show the position", "Withdraw: 2,000 now, rest waits"],
+        steps: ["Connect a devnet wallet", "Deposit: split into pools", "Where the money is", "Collect interest, rebalance", "Withdraw: pools top up", "Deposit from a Blink"],
       },
     ];
     parts.forEach((p, i) => {
@@ -748,7 +748,7 @@ async function main() {
     const NY = TOP + 4.82;
     text(s, [
       { text: "Devnet tokens have no value. ", options: { bold: true, color: AMBER } },
-      { text: "The vault doesn't move funds into yield protocols yet. Thumbnails: local build (demo data; vault in simulated preview).", options: { color: MUTED } },
+      { text: "Practice pools pay fixed practice rates, not market yield. Thumbnails: local build (demo data; vault in simulated preview).", options: { color: MUTED } },
     ], { x: X0, y: NY, w: CW, h: 0.4, fontSize: 11.5 });
     s.addNotes([
       "TIME: 15 seconds for the slide; the live demo itself takes 3 to 4 minutes if there's time. If time is short, skip Part B and show this slide only.",
@@ -756,23 +756,23 @@ async function main() {
       "SAY: Part A is live. Part B is a devnet prototype. Keep them separate.",
       "",
       "PART A — live comparison app (stablesaver-web.vercel.app)",
-      "1. Open the site. Point out: no wallet or sign-up.",
-      "2. Type an amount, e.g. $1,000, USDC.",
-      "3. Click Play it safe, then Balanced, then Go bigger. The recommendation and the list change.",
-      "4. Open the top option. Show the rate chart (drag across it), then \"How risky is it?\": the grade and each factor.",
-      "5. Show \"What $1,000 could earn\" and \"You'd keep in a year\" after network fees.",
-      "6. Type $100 and pick the Ethereum chip. If the live data still shows it, an option is marked \"Fees cost more than you'd earn\". If it doesn't, say so and move on.",
+      "1. Open the site (no wallet or sign-up). Click \"Find idle money in my wallet\" and paste a wallet address: it reads the USDC and USDT on Solana, read-only, and fills the calculator.",
+      "2. Click Play it safe, then Balanced, then Go bigger. The recommendation and the list change.",
+      "3. Open the top option. Show the rate chart (drag across it), \"Can I withdraw today?\" and \"How risky is it?\": the grade and each factor.",
+      "4. Point at the \"For comparison\" row: US Treasury bills, from the US Treasury's own data, with no crypto risk.",
+      "5. Type $100 and pick the Ethereum chip. If the live data still shows it, an option is marked \"Fees cost more than you'd earn\". If it doesn't, say so and move on.",
+      "6. Click \"Share my estimate\": the link previews as a card with the estimate. The QR code on the last slide opens the same site.",
       "",
       "PART B — devnet vault",
       "Before the talk: Vercel has the three devnet variables set and redeployed; Solflare is on devnet with test tokens and a little devnet SOL; do one dry run.",
-      "1. Show the wallet is on devnet (Solflare: Settings, Network, Devnet).",
-      "2. Open Vault. The badge should say Devnet, not Preview.",
-      "3. Connect the wallet.",
-      "4. Deposit some test tokens; approve in the wallet.",
-      "5. Show the position.",
-      "6. Withdraw more than 2,000: 2,000 arrives now, the rest is requested and unlocks in 30 minutes. Don't wait for it live.",
+      "1. Show the wallet is on devnet (Solflare: Settings, Network, Devnet), open Vault (the badge says Devnet, not Preview) and connect.",
+      "2. Deposit some test tokens; approve in the wallet. The same transaction splits the deposit into the practice pools.",
+      "3. \"Where the vault's money is\": 20% kept liquid, the rest in a pool per protocol, read from the chain.",
+      "4. Click \"Collect interest & rebalance\": anyone can press it, and it can only move money toward the on-chain strategy.",
+      "5. Withdraw more than the reserve holds: the program pulls the difference back from the pools. Above 2,000 the rest waits 30 minutes; don't wait live.",
+      "6. Open the Blink from the Vault page: the same deposit, from a link or QR code.",
       "",
-      "Say out loud: devnet tokens have no value, and the vault doesn't deploy funds into Kamino or the others yet, so nothing earns here.",
+      "Say out loud: devnet tokens have no value; the pools pay fixed practice rates, not market yield.",
       "",
       "Backup if the network fails: use these screenshots and the recorded run if you made one.",
     ].join("\n"));
@@ -784,9 +784,9 @@ async function main() {
     const s = pres.addSlide({ masterName: "CONTENT", sectionTitle: "Status and roadmap" });
     s.addText("What is live, what is experimental, and what comes next", { placeholder: "title" });
     const cols = [
-      { head: "Live", color: GREEN, items: ["Stablecoin opportunity comparison", "DefiLlama-backed pool data", "Risk grades and explanations", "Fee-adjusted earnings estimates", "Optional API endpoints"] },
-      { head: "Devnet prototype", color: PURPLE, items: ["Anchor vault program", "Deposits and shares", "Withdrawal limits and timelock", "Pause and authority controls"] },
-      { head: "Not yet implemented", color: AMBER, items: ["Allocator into lending protocols", "Real yield through the vault", "Deployed balances read on-chain, not reported by an admin", "Production security assurances"] },
+      { head: "Live", color: GREEN, items: ["Stablecoin opportunity comparison", "Risk grades and explanations", "Fee-adjusted earnings estimates", "Withdraw-today check, T-bill comparison", "Idle-money scan and share cards"] },
+      { head: "Devnet prototype", color: PURPLE, items: ["Anchor vault program", "Deposits, shares, limits, timelock", "Split into practice pools on-chain", "Deposit Blink (Solana Action)", "Pause and authority controls"] },
+      { head: "Not yet implemented", color: AMBER, items: ["CPI into Kamino, MarginFi, Drift and Save", "Market yield through the vault", "Production security assurances"] },
     ];
     const gap = 0.3;
     const cw = (CW - 2 * gap) / 3;
@@ -818,9 +818,9 @@ async function main() {
       "Key message: I know exactly what's real, what's experimental and what's missing. That's a strength, not an apology.",
       "",
       "Talking points:",
-      "- Live today: the comparison, DefiLlama-backed pool data, the grades with their reasons, fee-adjusted estimates, and an optional API (/v1/opportunities, /v1/estimate, /v1/strategies).",
-      "- Devnet prototype: the Anchor vault with deposits, shares, withdrawal limits, the timelock, pause and authority controls.",
-      "- Not yet: the allocator, so the vault earns nothing. Deployed balances must be read on-chain. Today deployed_assets is zero, and if an admin reported it, the share price would be whatever the admin says. That's why it has to be on-chain. And no production security assurances: no audit.",
+      "- Live today: the comparison on DefiLlama data, the grades with their reasons, fee-adjusted estimates, \"Can I withdraw today?\", the US Treasury bill comparison, the idle-money wallet scan, shareable estimate cards, and an optional API.",
+      "- Devnet prototype: the Anchor vault with deposits, shares, withdrawal limits, the timelock, pause and authority controls; a permissionless rebalance that splits deposits into practice pools by the on-chain strategy; and a deposit Blink.",
+      "- Not yet: CPI into the real protocols, so no market yield through the vault. Every balance the vault counts is already a real token in an account it owns, read on-chain, never reported by an admin. And no production security assurances: no audit.",
       "- Other limits: one data source, fixed fee estimates, weights that are my judgement and not back-tested, ranking on today's APY rather than the 30-day average, bridging not modelled, and admin and upgrade-key risk.",
       "",
       "Transition: Here's the order I'll fix them in.",
@@ -834,8 +834,8 @@ async function main() {
     const phases = [
       { n: "Phase 1", head: "Safety and correctness", color: GREEN, items: ["Escape hatch if a vault stays paused", "close_position to refund rent", "Fuzz the share math and limits"] },
       { n: "Phase 2", head: "Better recommendations", color: GREEN, items: ["Rank on the 30-day average APY", "Flag options that need funds moved between networks", "Back-test grades against past exploits"] },
-      { n: "Phase 3", head: "Vault integration", color: PURPLE, items: ["One real Kamino lending strategy", "Tested against the real Kamino program on a local validator", "Deployed balance read on-chain"] },
-      { n: "Phase 4", head: "Admin and expansion", color: PURPLE, items: ["Multisig authority", "Delay on strategy changes", "Blinks, alerts, read-only portfolio, more tokens"] },
+      { n: "Phase 3", head: "Vault integration", color: PURPLE, items: ["Swap a practice pool for one real Kamino strategy", "Tested against the real Kamino program on a local validator", "Same rebalance and on-chain balances"] },
+      { n: "Phase 4", head: "Admin and expansion", color: PURPLE, items: ["Multisig authority", "Delay on strategy changes", "Alerts, read-only portfolio, more tokens"] },
     ];
     const gap = 0.28;
     const pw = (CW - 3 * gap) / 4;
@@ -864,8 +864,8 @@ async function main() {
       "Talking points:",
       "- Phase 1, safety: an escape hatch so withdrawals reopen if a vault stays paused too long; close_position to refund account rent; fuzz testing the share math and withdrawal limits.",
       "- Phase 2, recommendations: rank on the 30-day average instead of today's rate; flag options that need funds moved between networks; back-test the grades against past exploits.",
-      "- Phase 3, the vault: one real Kamino lending integration, tested against the real Kamino program on a local validator, with the deployed balance read on-chain.",
-      "- Phase 4: a multisig authority and a delay on strategy changes, then Solana Actions and Blinks, rate and grade alerts, a read-only portfolio view, and more tokens such as USDT and Token-2022.",
+      "- Phase 3, the vault: replace a practice pool with one real Kamino lending integration, tested against the real Kamino program on a local validator. The rebalance and the on-chain accounting stay the same.",
+      "- Phase 4: a multisig authority and a delay on strategy changes, then rate and grade alerts, a read-only portfolio view, and more tokens such as USDT and Token-2022.",
       "",
       "All of this is planned, none of it is built yet. Don't give dates you can't commit to.",
       "",
@@ -917,7 +917,7 @@ async function main() {
       "- Close: StableSave. Know the risk before you chase the yield. Thank you.",
       "",
       "Likely questions and honest answers:",
-      "- Does the vault earn yield? Not yet. Deposits stay in the reserve; the Kamino allocator is the next major build.",
+      "- Does the vault earn yield? Not market yield yet. On devnet it splits deposits into practice pools that pay fixed practice rates from a sponsor pot of test tokens; swapping one for a real Kamino strategy is the next build.",
       "- Is it audited? No. It's a devnet prototype.",
       "- Who controls the vault? One authority key today, plus a guardian that can only pause. A multisig and a delay on strategy changes are planned.",
       "- Why trust the grades? They're transparent: every factor and its reason is shown, and unknowns lower the grade. The weights are my judgement and not back-tested yet.",

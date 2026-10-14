@@ -37,25 +37,30 @@ Source of truth: *StableSave — Project Review Guide*. Technical details were a
 
 **Before the talk**
 - Vercel has `NEXT_PUBLIC_SOLANA_CLUSTER=devnet`, the program id and the test-token mint set, and the site has been redeployed. The Vault page should show **Devnet**, not **Preview**.
+- The **Vault program** workflow has run since practice pools were added (it upgrades the program and opens the pools).
 - Solflare is on devnet, holds test tokens and a little devnet SOL. Do one full dry run.
 - Have the PDF open as a backup in case the network fails.
 
 **Part A — live comparison app** (stablesaver-web.vercel.app)
-1. Open the site; point out there's no wallet or sign-up.
-2. Enter an amount (e.g. $1,000 USDC).
-3. Switch Play it safe → Balanced → Go bigger.
-4. Open the top option: drag across the rate chart, then show "How risky is it?".
-5. Show "What $1,000 could earn" and "You'd keep in a year".
-6. Enter $100 and pick Ethereum. If live data still shows one, an option is marked "Fees cost more than you'd earn". If not, say so and move on.
+1. Open the site (no wallet or sign-up). Click **Find idle money in my wallet** and paste a wallet address: it reads
+   the USDC and USDT on Solana, read-only, and fills the calculator.
+2. Switch Play it safe → Balanced → Go bigger.
+3. Open the top option: drag across the rate chart, then show **Can I withdraw today?** and **How risky is it?**.
+4. Point at the **For comparison** row: US Treasury bills, from the US Treasury's own data.
+5. Enter $100 and pick Ethereum. If live data still shows one, an option is marked "Fees cost more than you'd earn".
+   If not, say so and move on.
+6. Click **Share my estimate**: the link previews as a card with the estimate.
 
 **Part B — devnet vault**
-1. Show the wallet is on devnet.
-2. Open Vault and connect.
-3. Deposit test tokens and approve.
-4. Show the position.
-5. Withdraw more than 2,000: 2,000 arrives now, the rest unlocks after 30 minutes (don't wait live).
+1. Show the wallet is on devnet, open Vault (badge: Devnet) and connect.
+2. Deposit test tokens and approve: the same transaction splits the deposit into the practice pools.
+3. **Where the vault's money is**: 20% kept liquid, the rest in a pool per protocol, read from the chain.
+4. **Collect interest & rebalance**: anyone can press it; it only moves money toward the on-chain strategy.
+5. Withdraw more than the reserve holds: the program pulls the difference from the pools. Above 2,000 the rest
+   waits 30 minutes (don't wait live).
+6. **Open Blink** on the Vault page: the same deposit from a link or QR code.
 
-Say out loud: devnet tokens have no value, and the vault doesn't move funds into yield protocols yet.
+Say out loud: devnet tokens have no value, and the practice pools pay fixed practice rates, not market yield.
 
 ## Assumptions to check before presenting
 
