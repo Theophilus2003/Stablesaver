@@ -6,18 +6,28 @@ import { parseAmountParam, parseAssetParam, parseRiskParam, parseStringParam, ty
 
 export const revalidate = 60;
 
-/** Shared links preview the estimate for the amount, stablecoin and risk level in the URL. */
+const SHARE_TITLE = "StableSave — Know the risk before you chase the yield";
+const SHARE_DESCRIPTION =
+  "Compare stablecoin yield across protocols and networks: an A–D risk grade for every option and what you keep after fees. No sign-up.";
+
+/**
+ * The site's own link shows the StableSave card; a shared estimate (amount, stablecoin and risk
+ * level in the URL) shows that estimate.
+ */
 export async function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
   const params = await searchParams;
+  const isEstimate = params.amount !== undefined || params.asset !== undefined || params.risk !== undefined;
   const query = new URLSearchParams({
     amount: String(Math.round(parseAmountParam(params.amount))),
     asset: parseAssetParam(params.asset),
     risk: parseRiskParam(params.risk),
   });
-  const image = { url: `/api/og?${query.toString()}`, width: 1200, height: 630, alt: "What your stablecoins could earn with StableSave" };
+  const image = isEstimate
+    ? { url: `/api/og?${query.toString()}`, width: 1200, height: 630, alt: "What your stablecoins could earn with StableSave" }
+    : { url: "/api/og", width: 1200, height: 630, alt: "StableSave: know the risk before you chase the yield" };
   return {
-    openGraph: { title: "StableSave — See what your stablecoins could earn", images: [image] },
-    twitter: { card: "summary_large_image", images: [image.url] },
+    openGraph: { type: "website", siteName: "StableSave", url: "/", title: SHARE_TITLE, description: SHARE_DESCRIPTION, images: [image] },
+    twitter: { card: "summary_large_image", title: SHARE_TITLE, description: SHARE_DESCRIPTION, images: [image] },
   };
 }
 

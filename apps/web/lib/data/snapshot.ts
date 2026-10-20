@@ -1,4 +1,5 @@
 import { summarizeMarket, type MarketSnapshot } from "@stablesave/core";
+import { unstable_cache } from "next/cache";
 import { createDefaultProviders, createOpportunityService, type OpportunityService } from "@stablesave/protocol-adapters";
 import { METHODOLOGY_VERSION } from "@stablesave/risk-engine";
 import { getDataMode } from "../env";
@@ -19,9 +20,37 @@ function localService(): OpportunityService {
   return service;
 }
 
+/** Thrown inside the cache so a snapshot with no opportunities (sources down) isn't kept. */
+class EmptySnapshot extends Error {
+  constructor(readonly snapshot: MarketSnapshot) {
+    super("No opportunities");
+  }
+}
+
+/**
+ * The rated snapshot, shared across server instances for five minutes (and refreshed in the
+ * background), so a cold start doesn't wait on DefiLlama. That matters for link previews: X and
+ * other crawlers give up on slow pages and images.
+ */
+const sharedSnapshot = unstable_cache(
+  async () => {
+    const snapshot = await localService().getSnapshot();
+    if (snapshot.opportunities.length === 0) throw new EmptySnapshot(snapshot);
+    return snapshot;
+  },
+  ["market-snapshot"],
+  { revalidate: 300 },
+);
+
 export async function getMarketSnapshot(): Promise<MarketSnapshot> {
   const api = process.env.STABLESAVE_API_URL;
-  if (!api) return localService().getSnapshot();
+  if (!api) {
+    try {
+      return await sharedSnapshot();
+    } catch (error) {
+      return error instanceof EmptySnapshot ? error.snapshot : localService().getSnapshot();
+    }
+  }
 
   try {
     const res = await fetch(`${api.replace(/\/$/, "")}/v1/opportunities`, { next: { revalidate: 60 } });

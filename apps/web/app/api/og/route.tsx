@@ -4,15 +4,19 @@ import { getNetwork, recommend } from "@stablesave/core";
 import { ImageResponse } from "next/og";
 import { WORDMARK_PATH } from "@/components/brand/logo";
 import { getMarketSnapshot } from "@/lib/data/snapshot";
+import { getDataMode } from "@/lib/env";
 import { formatEarnings, formatPercent, formatUsd } from "@/lib/format";
 import { parseAmountParam, parseAssetParam, parseRiskParam } from "@/lib/search-params";
 
 /**
  * Share card (1200×630) for an estimate: /api/og?amount=10000&asset=USDC&risk=balanced.
- * The home page uses it as its preview image, so a shared link shows the estimate.
+ * A shared estimate link uses it as its preview image. A bare /api/og is the site's own card:
+ * it needs no market data, so it is always quick.
  */
 const WIDTH = 1200;
 const HEIGHT = 630;
+/** X and other crawlers drop slow images, so an estimate waits this long for data at most. */
+const DATA_BUDGET_MS = 3_000;
 
 const C = {
   ground: "#070a09",
@@ -38,17 +42,24 @@ function loadFonts(): Promise<Font[]> {
   return fonts;
 }
 
+function withinBudget<T>(promise: Promise<T>): Promise<T | null> {
+  return Promise.race([promise, new Promise<null>((resolve) => setTimeout(() => resolve(null), DATA_BUDGET_MS))]);
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
+  const wantsEstimate = ["amount", "asset", "risk"].some((key) => url.searchParams.has(key));
   const amount = parseAmountParam(url.searchParams.get("amount") ?? undefined);
   const asset = parseAssetParam(url.searchParams.get("asset") ?? undefined);
   const profile = parseRiskParam(url.searchParams.get("risk") ?? undefined);
 
-  const snapshot = await getMarketSnapshot();
-  const rec = recommend({ amount, asset, profile, opportunities: snapshot.opportunities });
-  const pick = rec.best ?? rec.closest;
+  const snapshot = wantsEstimate ? await withinBudget(getMarketSnapshot()) : null;
+  const rec = snapshot ? recommend({ amount, asset, profile, opportunities: snapshot.opportunities }) : null;
+  const pick = rec ? (rec.best ?? rec.closest) : undefined;
   const o = pick?.opportunity;
-  const demo = snapshot.mode === "demo";
+  const demo = (snapshot?.mode ?? getDataMode()) === "demo";
+  // Keep the site card for a day; an estimate that fell back to it, only briefly.
+  const cacheSeconds = wantsEstimate && !o ? 60 : 3600;
 
   return new ImageResponse(
     (
@@ -111,14 +122,17 @@ export async function GET(request: Request) {
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", fontSize: 92, fontWeight: 700, letterSpacing: -4, lineHeight: 1.05 }}>
-              What could your stablecoins earn?
+            <div style={{ display: "flex", fontSize: 84, fontWeight: 700, letterSpacing: -3.5, lineHeight: 1.08 }}>
+              Know the risk before you chase the yield.
+            </div>
+            <div style={{ display: "flex", fontSize: 32, color: C.soft, marginTop: 26 }}>
+              Every option graded A–D, with what you keep after fees.
             </div>
           </div>
         )}
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", fontSize: 24, color: C.muted }}>
-          <div style={{ display: "flex" }}>Estimated after fees. Not a guarantee.</div>
+          <div style={{ display: "flex" }}>{o ? "Estimated after fees. Not a guarantee." : "Free to compare. No sign-up."}</div>
           <div style={{ display: "flex", color: C.ink, fontWeight: 600 }}>{url.host}</div>
         </div>
       </div>
@@ -127,7 +141,7 @@ export async function GET(request: Request) {
       width: WIDTH,
       height: HEIGHT,
       fonts: await loadFonts(),
-      headers: { "Cache-Control": "public, max-age=0, s-maxage=600, stale-while-revalidate=3600" },
+      headers: { "Cache-Control": `public, max-age=0, s-maxage=${cacheSeconds}, stale-while-revalidate=86400` },
     },
   );
 }
